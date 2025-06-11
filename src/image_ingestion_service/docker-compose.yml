@@ -1,0 +1,73 @@
+version: "3.9"
+
+services:
+  nginx:
+    image: nginx:alpine
+    container_name: nginx-drivebc-image
+    ports:
+      - "8080:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./nginx/.htpasswd:/etc/nginx/.htpasswd
+      - ./nginx/ip_whitelist.conf:/etc/nginx/ip_whitelist.conf:ro
+    depends_on:
+      - image-receiver
+
+  image-receiver:
+    container_name: image-receiver-drivebc-image
+    build: ./image_receiver
+    ports:
+      - "8000:8000"
+    environment:
+      - PASSTHROUGH_URL=http://passthrough-service:8001/forward
+
+  passthrough-service:
+    container_name: passthrough-service-drivebc-image
+    build: ./passthrough_service
+    ports:
+      - "8001:8001"
+    environment:
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq/
+
+  rabbitmq:
+    container_name: rabbitmq-drivebc-image
+    image: rabbitmq:3-management
+    ports:
+      - "5672:5672"
+      - "15672:15672"  # management UI
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
+
+  ftp-server:
+    container_name: ftp-server-drivebc-image
+    image: stilliard/pure-ftpd
+    ports:
+      - "21:21"
+    environment:
+      - FTP_USER_NAME=test
+      - FTP_USER_PASS=test
+      - FTP_USER_HOME=/home/test
+    volumes:
+      - ./ftp-data:/home/test
+
+  consumer:
+    container_name: consumer-drivebc-image
+    build:
+      context: ./consumer
+    environment:
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq/
+    depends_on:
+      - rabbitmq
+
+  consumer_drivebc:
+    container_name: consumer-drivebc-drivebc-image
+    build:
+      context: ./consumer_drivebc
+    environment:
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq/
+    depends_on:
+      - rabbitmq
+
+
+

@@ -1,0 +1,21 @@
+# file based env values
+.env
+src/image_ingetsion_system/.env
+
+# Build files
+*.pyc
+*.pyo
+
+# Virtual environments
+**/venv/
+**/.venv/
+
+# src/image/
+
+# # Nginx configuration files
+# nginx/.htpasswd
+# nginx/ip_whitelist.conf
+
+# FTP data
+src/image_ingestion_service/ftp-data/
+
