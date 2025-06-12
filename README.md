@@ -2,11 +2,10 @@
 Image Ingestion Service for DriveBC.ca
 
 The DriveBC Image Ingestion Service is composed of several [Docker](https://www.docker.com/) containers:
-[FastAPI](https://fastapi.tiangolo.com/) backend, [nginx](https://nginx.org/) served as a reverse proxy server, [RabbitMQ](https://www.rabbitmq.com/) served as a test RabbitMQ messaging and streaming broker, and [FTP](https://en.wikipedia.org/wiki/File_Transfer_Protocol) served as a testing FTP server.
+[FastAPI](https://fastapi.tiangolo.com/) backend, [nginx](https://nginx.org/) served as a reverse proxy server, and [FTP](https://en.wikipedia.org/wiki/File_Transfer_Protocol) served as a testing FTP server.
 
 - [Quickstart](#quickstart)
 - [Environment configuration](#environment-configuration)
-
 
 ## <a name="quickstart"></a>Quickstart
 1. Install [Docker Desktop](https://docs.docker.com/compose/install/) for your OS[**](#first-asterisk)
@@ -17,16 +16,52 @@ The DriveBC Image Ingestion Service is composed of several [Docker](https://www.
    - nginx-drivebc-image: nginx reverse proxy server for basic auth and ip filtering at http://localhost:80/cgi-bin/notify.cgi
    - image-receiver-drivebc-image: backend API endpoint for receiving images at http://localhost:8000/upload/
    - passthrough-service-drivebc-image: backend API endpoint for pass through images to RabbitMQ and legacy FTP server at http://localhost:8001/forward/
-   - rabbitmq-drivebc-image: RabbitMQ container for testing
    - ftp-server-drivebc-image: FTP server for testing
    - consumer-drivebc-image: test consumer for consuming received images from RabbitMQ once images received
-   - consumer-drivebc-image: another test consumer for consuming received images from RabbitMQ once images received
+   - consumer-drivebc-drivebc-image: another test consumer for consuming received images from RabbitMQ once images received
 
 <a name="first-asterisk"></a>** You will need to install or update to WSL 2 on Windows (wsl --install or wsl --update)
 
 ## <a name="environment-configuration"></a>Environment configuration
 Environments are configured via environment variables passed to Docker Compose in a .env file.
 Copy and rename ".env.example" into ".env" in the same directory and replace values according to your target environment.
+
+## Image ingestion Workflow
+
+Axis Camera Image Ingestion Workflow
+
+1. Camera Configuration
+- The end user configures an Axis camera to upload images via HTTP or HTTPS to a specific endpoint.
+- This endpoint is the public facing URL handled by an NGINX reverse proxy.
+
+2. Request Reaches NGINX Reverse Proxy
+- The image upload request is received by the NGINX reverse proxy server.
+- NGINX performs two key security checks:
+   - Basic Authentication: Verifies that the request has valid credentials.
+   - IP Whitelisting: Ensures the request originates from an approved IP address.
+
+3. NGINX Proxies to Image Receiver
+- If both checks pass, NGINX forwards the request to the Image Receiver service.
+- If either check fails, the request is denied.
+
+4. Image Receiver Service
+- The Image Receiver logs the incoming request and handles it appropriately.
+- It exposes three endpoints:
+   - GET /health – for health checks
+   - POST /upload – for receiving image uploads
+   - GET /metrics – for Prometheus metrics (e.g., success/failure counters)
+- Upon receiving a valid image upload, it forwards (passes through) the request to a separate Pass-Through service.
+
+5. Pass-Through Service
+- The Pass-Through service takes the image from the receiver and performs two actions:
+   - Pushes the image to a RabbitMQ message queue (MOTT RabbitMQ)
+   - Uploads a copy to a legacy FTP server for backward compatibility
+
+6. Image Processing Consumers
+- Two separate services consume the images from RabbitMQ:
+   - consumer – likely performs general processing or analysis
+   - consumer-drivebc – likely handles DriveBC-specific logic
+- Each consumer independently picks up and processes images from the queue based on its logic or configuration.
 
 ## Test
 
