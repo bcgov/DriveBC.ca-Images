@@ -3,9 +3,10 @@ import asyncio
 import os
 
 async def consume():
-    connection = await aio_pika.connect_robust(
-        os.getenv("RABBITMQ_URL", "amqp://guest:guest@rabbitmq/")
-    )
+    rb_url = os.getenv("RABBITMQ_URL")
+    if not rb_url:
+        raise ValueError("RABBITMQ_URL environment variable is not set")
+    connection = await aio_pika.connect_robust(rb_url)
     channel = await connection.channel()
     queue = await channel.declare_queue(
             "image-queue-consumer",

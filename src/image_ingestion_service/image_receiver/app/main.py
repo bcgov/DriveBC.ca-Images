@@ -11,7 +11,6 @@ from prometheus_client import Counter
 from prometheus_fastapi_instrumentator import Instrumentator
 
 # Configure logging
-# Setup logging to stdout
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
@@ -61,7 +60,6 @@ async def receive_image(request: Request,
         logger.warning(f"Invalid image type from {camera_id} ({client_ip}): {image.content_type}")
         raise HTTPException(status_code=400, detail="Only image uploads allowed")
     
-    headers = dict(request.headers)
     if not camera_id:
         logger.warning(f"Camera connection failed from {client_ip}: Missing camera_id")
         raise HTTPException(status_code=400, detail="camera_id header missing")

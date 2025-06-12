@@ -19,7 +19,7 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - PASSTHROUGH_URL=http://passthrough-service:8001/forward
+      - PASSTHROUGH_URL=${PASSTHROUGH_URL}
 
   passthrough-service:
     container_name: passthrough-service-drivebc-image
@@ -27,17 +27,9 @@ services:
     ports:
       - "8001:8001"
     environment:
-      - RABBITMQ_URL=amqp://guest:guest@rabbitmq/
-
-  rabbitmq:
-    container_name: rabbitmq-drivebc-image
-    image: rabbitmq:3-management
-    ports:
-      - "5672:5672"
-      - "15672:15672"  # management UI
-    environment:
-      - RABBITMQ_DEFAULT_USER=guest
-      - RABBITMQ_DEFAULT_PASS=guest
+      - RABBITMQ_URL=${RABBITMQ_URL}
+    depends_on:
+      - ftp-server
 
   ftp-server:
     container_name: ftp-server-drivebc-image
@@ -45,8 +37,8 @@ services:
     ports:
       - "21:21"
     environment:
-      - FTP_USER_NAME=test
-      - FTP_USER_PASS=test
+      - FTP_USER_NAME=${FTP_USER}
+      - FTP_USER_PASS=${FTP_PASS}
       - FTP_USER_HOME=/home/test
     volumes:
       - ./ftp-data:/home/test
@@ -56,18 +48,14 @@ services:
     build:
       context: ./consumer
     environment:
-      - RABBITMQ_URL=amqp://guest:guest@rabbitmq/
-    depends_on:
-      - rabbitmq
+      - RABBITMQ_URL=${RABBITMQ_URL}
 
   consumer_drivebc:
     container_name: consumer-drivebc-drivebc-image
     build:
       context: ./consumer_drivebc
     environment:
-      - RABBITMQ_URL=amqp://guest:guest@rabbitmq/
-    depends_on:
-      - rabbitmq
+      - RABBITMQ_URL=${RABBITMQ_URL}
 
 
 

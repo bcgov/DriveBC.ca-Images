@@ -2,7 +2,10 @@ import aio_pika
 import os
 
 async def send_to_rabbitmq(image_bytes, filename, camera_id):
-    connection = await aio_pika.connect_robust(os.getenv("RABBITMQ_URL", "amqp://guest:guest@rabbitmq/"))
+    rb_url = os.getenv("RABBITMQ_URL")
+    if not rb_url:
+        raise ValueError("RABBITMQ_URL environment variable is not set")
+    connection = await aio_pika.connect_robust(rb_url)
     
     async with connection:
         channel = await connection.channel()

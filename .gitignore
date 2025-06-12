@@ -13,8 +13,8 @@ src/image_ingetsion_system/.env
 # src/image/
 
 # # Nginx configuration files
-# nginx/.htpasswd
-# nginx/ip_whitelist.conf
+nginx/.htpasswd
+nginx/ip_whitelist.conf
 
 # FTP data
 src/image_ingestion_service/ftp-data/
