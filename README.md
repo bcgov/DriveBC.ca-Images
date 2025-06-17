@@ -65,6 +65,11 @@ Axis Camera Image Ingestion Workflow
 
 ## Test
 
+Port forward RabbitMQ to local:
+- Login in to OpenShift silver with oc cli command.
+- Change project to RabbitMQ Dev namespace: oc project f73c1f-dev 
+- Port forward RabbitMQ 5672 port to local host all interfaces: kubectl port-forward svc/moti-rabbitmq 5672:5672 --address 0.0.0.0. (oc command does not work to port forward to all interfaces.)
+
 Run curl from Windows Command Prompt:
 - curl -X POST -H "camera-id: CAM001" -F "image=@C:/test/image/1.jpg" http://localhost:8080/cgi-bin/notify.cgi -u bruce:bruce
 - Ensure the camera-id header and correct file path are used. Replace credentials as needed for authentication testing.
