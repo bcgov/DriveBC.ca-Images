@@ -23,6 +23,7 @@ services:
       - RABBITMQ_URL=${RABBITMQ_URL}
       - CAMERA_IP_MAPPING=${CAMERA_IP_MAPPING}
       - LOCATION_USER_PASS_MAPPING=${LOCATION_USER_PASS_MAPPING}
+      - CAMERA_LOCATION_MAPPING=${CAMERA_LOCATION_MAPPING}
 
   # passthrough-service:
   #   container_name: passthrough-service-drivebc-image

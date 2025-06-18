@@ -7,6 +7,7 @@ import json
 
 CAMERA_IP_MAPPING = json.loads(os.getenv("CAMERA_IP_MAPPING", "{}"))
 LOCATION_USER_PASS_MAPPING = json.loads(os.getenv("LOCATION_USER_PASS_MAPPING", "{}"))
+CAMERA_LOCATION_MAPPING = json.loads(os.getenv("CAMERA_LOCATION_MAPPING", "{}"))
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -35,10 +36,15 @@ async def authenticate_request(
     expected_ip = CAMERA_IP_MAPPING.get(camera_id)
 
     if not expected_ip:
-        logger.warning(f"Unknown camera ID: {camera_id}")
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid camera ID")
-
-    if client_ip != expected_ip:
+        # If the camera does not exist in the camera ip mapping, check the credentials against the location mapping
+        logger.warning(f"Unknown camera IP: {client_ip}")
+        camera_loc = CAMERA_LOCATION_MAPPING.get(camera_id)
+        expected_creds = LOCATION_USER_PASS_MAPPING.get(camera_loc)
+        if username != expected_creds["username"] or password != expected_creds["password"]:
+            logger.warning(f"Credential mismatch for location {camera_location}")
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid credentials")
+            
+    if expected_ip and client_ip != expected_ip:
         logger.warning(f"IP mismatch for {camera_id}: expected {expected_ip}, got {client_ip}")
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="IP address mismatch")
 
