@@ -3,6 +3,7 @@ from typing import Optional
 import logging
 import os
 import json
+from starlette.datastructures import FormData, UploadFile
 
 
 CAMERA_IP_MAPPING = json.loads(os.getenv("CAMERA_IP_MAPPING", "{}"))
@@ -24,14 +25,27 @@ def get_client_ip(request: Request) -> str:
 
 async def authenticate_request(
     request: Request,
-    camera_id: Optional[str] = Header(None, alias="camera-id"),
-    camera_location: Optional[str] = Header(None, alias="camera-location"),
-    username: Optional[str] = Header(None),
-    password: Optional[str] = Header(None),
 ):
-    if not all([camera_id, camera_location, username, password]):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Missing authentication headers")
+    form: FormData = await request.form()
+    image: UploadFile = form.get("image")
 
+    if not image:
+        raise HTTPException(status_code=400, detail="Image file is required")
+
+    filename = image.filename
+    name_without_ext = os.path.splitext(filename)[0]
+
+    camera_id = request.headers.get("camera-id")
+    camera_location = request.headers.get("camera-location")
+    username = request.headers.get("username")
+    password = request.headers.get("password")
+
+    if not all([camera_id, camera_location, username, password]):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Missing required headers")
+    # Check if the camera ID matches the image filename
+    if camera_id != name_without_ext:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Camera ID does not match image filename")
+    
     client_ip = get_client_ip(request)
     expected_ip = CAMERA_IP_MAPPING.get(camera_id)
 
