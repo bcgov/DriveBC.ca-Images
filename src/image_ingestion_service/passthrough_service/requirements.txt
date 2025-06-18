@@ -1,4 +1,0 @@
-fastapi
-uvicorn
-aioftp
-aio_pika

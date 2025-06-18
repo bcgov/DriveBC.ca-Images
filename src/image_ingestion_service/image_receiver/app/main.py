@@ -40,7 +40,6 @@ def is_jpg_image(image_bytes: bytes) -> bool:
     except Exception:
         return False
 
-PASSTHROUGH_URL = os.getenv("PASSTHROUGH_URL")
 
 app = FastAPI()
 
