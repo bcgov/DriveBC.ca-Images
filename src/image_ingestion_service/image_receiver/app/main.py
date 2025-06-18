@@ -1,5 +1,4 @@
-from fastapi import FastAPI, Request, HTTPException
-import httpx
+from fastapi import FastAPI, Request, HTTPException, Depends
 import os
 from fastapi import File, UploadFile
 from PIL import Image
@@ -7,8 +6,15 @@ from io import BytesIO
 from fastapi import Header
 import logging
 import sys
+from datetime import datetime
+from .rabbitmq import send_to_rabbitmq
+from .ftp import upload_to_ftp
+import uuid
+from typing import Optional
 from prometheus_client import Counter
 from prometheus_fastapi_instrumentator import Instrumentator
+from .auth import authenticate_request, CAMERA_IP_MAPPING, LOCATION_USER_PASS_MAPPING
+
 
 # Configure logging
 logging.basicConfig(
@@ -38,62 +44,59 @@ PASSTHROUGH_URL = os.getenv("PASSTHROUGH_URL")
 
 app = FastAPI()
 
-# Metrics endpoint
-Instrumentator().instrument(app).expose(app)
-
 # Health check endpoint
 @app.get("/healthz")
 async def health_check():
     return {"status": "ok"}
 
-# Image ingest endpoint
-@app.post("/upload")
-async def receive_image(request: Request,
-                        image: UploadFile = File(...),
-                        camera_id: str = Header(...)
-                        ):
-    client_ip = request.headers.get("x-real-ip") or request.client.host
+# Metrics endpoint
+Instrumentator().instrument(app).expose(app)
 
+# Image ingest endpoint
+@app.post("/images")
+async def passthrough(request: Request,
+                        image: UploadFile = File(...),
+                        camera_id: str = Header(...),
+                        auth_data=Depends(authenticate_request),
+                        ):
     successful_auth_counter.inc()
 
-    if not image.content_type.startswith("image/"):
-        logger.warning(f"Invalid image type from {camera_id} ({client_ip}): {image.content_type}")
-        raise HTTPException(status_code=400, detail="Only image uploads allowed")
+    client_ip = auth_data["client_ip"]
+    expected_ip = CAMERA_IP_MAPPING.get(camera_id)
+    if client_ip != expected_ip:
+        unsuccessful_ip_counter.inc()
+
+    camera_location: Optional[str] = Header(None, alias="camera-location"),
     
-    if not camera_id:
-        logger.warning(f"Camera connection failed from {client_ip}: Missing camera_id")
-        raise HTTPException(status_code=400, detail="camera_id header missing")
+    expected_creds = LOCATION_USER_PASS_MAPPING.get(camera_location)
+    if not expected_creds:
+        unsuccessful_auth_counter.inc()
 
     image_bytes = await image.read()
-
     if not is_jpg_image(image_bytes):
-        logger.warning(f"Camera image failed from {client_ip}: invalid format ({image.content_type})")
+        logger.warning(f"Invalid image format ({image.content_type})")
         raise HTTPException(
             status_code=415,
             detail="The camera image is not in JPG/JPEG format."
         )
-
-    async with httpx.AsyncClient() as client:
-        response = await client.post(
-            PASSTHROUGH_URL,
-            content=image_bytes,
-            headers={"Content-Type": image.content_type,
-                    "camera_id": camera_id
-                }
-        )
     
-    # # Unauthorized IP (TBD)
-    # unsuccessful_ip_counter.inc()
+    timestamp = datetime.utcnow().strftime("%Y%m%dT%H%M%SZ")
+    unique_id = uuid.uuid4().hex[:8]
+    filename = f"{camera_id}_{timestamp}_{unique_id}.jpg"
 
-    # # Failed auth (TBD)
-    # unsuccessful_auth_counter.inc()
+    try:
+        await send_to_rabbitmq(image_bytes, filename, camera_id=camera_id)
+        await upload_to_ftp(image_bytes, filename, camera_id=camera_id)
 
-    if response.status_code != 200:
-        logger.info(f"Camera image  from {client_ip} passed through failed. Response: {response.status_code}")
-        
+    except Exception as e:
+        logger.error(f"Push to RabbitMQ failed from {camera_id}: {e}")
         rabbitmq_push_fail_counter.inc()
-    else:
-        logger.info(f"Camera image  from {client_ip} passed through successfully. Response: {response.status_code}")
-        rabbitmq_push_success_counter.inc()
+        raise HTTPException(status_code=500, detail="Failed to push image to RabbitMQ or FTP")   
+    
+    rabbitmq_push_success_counter.inc()
 
-    return {"status": "received", "passthrough_status": response.status_code}
+    return {
+            "status": "forwarded", 
+            "camera_id": camera_id,
+            "filename": filename
+        }

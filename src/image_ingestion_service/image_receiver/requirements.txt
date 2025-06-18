@@ -4,3 +4,5 @@ httpx
 python-multipart
 pillow
 prometheus_fastapi_instrumentator
+aioftp
+aio_pika
