@@ -87,6 +87,7 @@ jobs:
     - name: Print current directory
       run: |
         pwd
+        ls
     - name: Helm upgrade on OpenShift Gold Environment
       run: |
         helm upgrade dev-image-ingestion-service -f ./infrastructure/main/values-dev.yaml ./infrastructure/main --set image.tag="sha-${{ github.sha }}"
