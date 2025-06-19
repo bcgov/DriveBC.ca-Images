@@ -11,7 +11,6 @@ async def upload_to_ftp(image_bytes: bytes, filename: str, camera_id: str):
     target_dir = os.getenv("FTP_TARGET_DIR", "uploads")
     async with aioftp.Client.context(host, port, user, password) as client:
         try:
-            print("Changing to target directory:", target_dir)
             await client.change_directory(target_dir)
         except aioftp.StatusCodeError as e:
             await client.make_directory(target_dir)

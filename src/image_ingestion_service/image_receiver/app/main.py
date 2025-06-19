@@ -1,11 +1,9 @@
 from fastapi import FastAPI, Request, HTTPException, Depends
-import os
+import logging
 from fastapi import File, UploadFile
 from PIL import Image
 from io import BytesIO
 from fastapi import Header
-import logging
-import sys
 from datetime import datetime
 from .rabbitmq import send_to_rabbitmq
 from .ftp import upload_to_ftp
@@ -14,14 +12,6 @@ from typing import Optional
 from prometheus_client import Counter
 from prometheus_fastapi_instrumentator import Instrumentator
 from .auth import authenticate_request, CAMERA_IP_MAPPING, LOCATION_USER_PASS_MAPPING
-
-
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(message)s",
-    handlers=[logging.StreamHandler(sys.stdout)]
-)
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +32,7 @@ def is_jpg_image(image_bytes: bytes) -> bool:
 
 
 app = FastAPI(
-    title="MOTT Image Receiver Service",
+    title="MOTT Image Ingestion Service",
     version="1.0.0",
     description="Handles image ingestion with auth per camera/location.",
     docs_url="/docs", 
@@ -93,7 +83,7 @@ async def receive_image(request: Request,
 
     try:
         await send_to_rabbitmq(image_bytes, filename, camera_id=camera_id)
-        await upload_to_ftp(image_bytes, filename, camera_id=camera_id)
+        # await upload_to_ftp(image_bytes, filename, camera_id=camera_id)
 
     except Exception as e:
         logger.error(f"Push to RabbitMQ failed from {camera_id}: {e}")

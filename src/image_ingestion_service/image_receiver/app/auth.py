@@ -1,5 +1,6 @@
 from fastapi import Request, Header, HTTPException, status
 import logging
+import sys
 import os
 import json
 from starlette.datastructures import FormData, UploadFile
@@ -10,7 +11,11 @@ LOCATION_USER_PASS_MAPPING = json.loads(os.getenv("LOCATION_USER_PASS_MAPPING", 
 CAMERA_LOCATION_MAPPING = json.loads(os.getenv("CAMERA_LOCATION_MAPPING", "{}"))
 
 # Configure logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    handlers=[logging.StreamHandler(sys.stdout)]
+)
 logger = logging.getLogger(__name__)
 
 def get_client_ip(request: Request) -> str:
@@ -36,17 +41,23 @@ async def authenticate_request(
     username = request.headers.get("username")
     password = request.headers.get("password")
 
+
     # Check if all required headers are present
     if not all([camera_id, username, password]):
+        logger.warning(f"Missing required headers for camera {camera_id} from IP {client_ip}")
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Missing required headers")
     
     # Check if the camera ID matches the image filename
     if camera_id != name_without_ext:
+        logger.warning(f"Camera ID does not match image filename for camera {camera_id} from IP {client_ip}")
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Camera ID does not match image filename")
     
     client_ip = get_client_ip(request)
     expected_ip = CAMERA_IP_MAPPING.get(camera_id)
     camera_location = CAMERA_LOCATION_MAPPING.get(camera_id)
+
+    # Log the attempt
+    logger.info(f"Camera connect attempt: IP={client_ip}, camera-id={camera_id}")
 
     # Validate camera IP
     if not expected_ip:
