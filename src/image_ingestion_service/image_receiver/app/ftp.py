@@ -2,6 +2,9 @@ from anyio import Path
 import aioftp
 import tempfile
 import os
+import logging
+
+logger = logging.getLogger(__name__)
 
 async def upload_to_ftp(image_bytes: bytes, filename: str, camera_id: str):
     host = os.getenv("FTP_HOST", "ftp-server")
@@ -10,6 +13,7 @@ async def upload_to_ftp(image_bytes: bytes, filename: str, camera_id: str):
     password = os.getenv("FTP_PASS", "test")
     target_dir = os.getenv("FTP_TARGET_DIR", "uploads")
     async with aioftp.Client.context(host, port, user, password) as client:
+        logger.info(f"Connected to FTP server {host}:{port} as user {user}")
         try:
             await client.change_directory(target_dir)
         except aioftp.StatusCodeError as e:
@@ -26,6 +30,7 @@ async def upload_to_ftp(image_bytes: bytes, filename: str, camera_id: str):
         
         # Upload the renamed file to FTP
         await client.upload(tmp_file_path, remote_path, write_into=True)
+        logger.info(f"Uploaded {filename} to FTP server at {remote_path}")        
 
         # Clean up
         Path(tmp_file_path).unlink()

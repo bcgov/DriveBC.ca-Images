@@ -1,5 +1,8 @@
 import aio_pika
 import os
+import logging
+
+logger = logging.getLogger(__name__)
 
 async def send_to_rabbitmq(image_bytes, filename, camera_id):
     rb_url = os.getenv("RABBITMQ_URL")
@@ -17,7 +20,7 @@ async def send_to_rabbitmq(image_bytes, filename, camera_id):
                 type=aio_pika.ExchangeType.FANOUT,
                 durable=True
             )
-        print(f"Fanout exchange '{exchange.name}' created or already exists.")
+        logger.info(f"Fanout exchange '{exchange.name}' created or already exists.")
 
         await exchange.publish(
             aio_pika.Message(
