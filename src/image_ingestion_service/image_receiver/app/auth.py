@@ -48,11 +48,12 @@ async def authenticate_request(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Missing required headers")
     
     # Check if the camera ID matches the image filename
+    client_ip = get_client_ip(request)
     if camera_id != name_without_ext:
         logger.warning(f"Camera ID does not match image filename for camera {camera_id} from IP {client_ip}")
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Camera ID does not match image filename")
     
-    client_ip = get_client_ip(request)
+    
     expected_ip = CAMERA_IP_MAPPING.get(camera_id)
     camera_location = CAMERA_LOCATION_MAPPING.get(camera_id)
 
