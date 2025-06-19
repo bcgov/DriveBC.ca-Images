@@ -17,7 +17,7 @@ async def send_to_rabbitmq(image_bytes, filename, camera_id):
                 type=aio_pika.ExchangeType.FANOUT,
                 durable=True
             )
-        print(f"✅ Fanout exchange '{exchange.name}' created or already exists.")
+        print(f"Fanout exchange '{exchange.name}' created or already exists.")
 
         await exchange.publish(
             aio_pika.Message(

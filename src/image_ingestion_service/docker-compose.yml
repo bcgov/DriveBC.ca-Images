@@ -25,19 +25,19 @@ services:
     volumes:
       - ./ftp-data:/home/test
 
-  # consumer:
-  #   container_name: consumer-drivebc-image
-  #   build:
-  #     context: ./consumer
-  #   environment:
-  #     - RABBITMQ_URL=${RABBITMQ_URL}
+  consumer:
+    container_name: consumer-drivebc-image
+    build:
+      context: ./consumer
+    environment:
+      - RABBITMQ_URL=${RABBITMQ_URL}
 
-  # consumer_drivebc:
-  #   container_name: consumer-drivebc-drivebc-image
-  #   build:
-  #     context: ./consumer_drivebc
-  #   environment:
-  #     - RABBITMQ_URL=${RABBITMQ_URL}
+  consumer-drivebc:
+    container_name: consumer-drivebc-drivebc-image
+    build:
+      context: ./consumer_drivebc
+    environment:
+      - RABBITMQ_URL=${RABBITMQ_URL}
 
 
 

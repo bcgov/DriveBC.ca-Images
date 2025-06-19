@@ -8,14 +8,18 @@ async def consume():
         raise ValueError("RABBITMQ_URL environment variable is not set")
     connection = await aio_pika.connect_robust(rb_url)
     channel = await connection.channel()
+    exchange = await channel.declare_exchange(
+                name="test.fanout_image_test",
+                type=aio_pika.ExchangeType.FANOUT,
+                durable=True
+            )
     queue = await channel.declare_queue(
-            "image-queue-consumer",
-            durable=True,
-            exclusive=False,
-            auto_delete=False
-        )
-
-    exchange = await channel.get_exchange("amq.fanout")
+        "image-queue-drivebc",
+        durable=True,
+        exclusive=False,
+        auto_delete=False
+    )
+    print(f"Fanout exchange '{exchange.name}' created or already exists.")
     await queue.bind(exchange)
 
     async with queue.iterator() as queue_iter:
