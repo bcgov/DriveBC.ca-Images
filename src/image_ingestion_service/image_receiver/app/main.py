@@ -83,6 +83,7 @@ async def receive_image(request: Request,
 
     try:
         await send_to_rabbitmq(image_bytes, filename, camera_id=camera_id)
+        logger.info(f"Push to RabbitMQ from {camera_id}: {e}")
     except Exception as e:
         logger.error(f"Push to RabbitMQ failed from {camera_id}: {e}")
         rabbitmq_push_fail_counter.inc()
@@ -90,6 +91,7 @@ async def receive_image(request: Request,
 
     try:
         await upload_to_ftp(image_bytes, filename, camera_id=camera_id)
+        logger.info(f"Push to FTP server from {camera_id}: {e}")
     except Exception as e:
         logger.error(f"Push to FTP failed from {camera_id}: {e}")
         raise HTTPException(status_code=500, detail="Failed to push image to FTP")     
@@ -97,7 +99,7 @@ async def receive_image(request: Request,
     rabbitmq_push_success_counter.inc()
 
     return {
-            "status": "forwarded", 
+            "status": "Success", 
             "camera_id": camera_id,
             "filename": filename
         }
