@@ -14,7 +14,7 @@ async def consume():
                 durable=True
             )
     queue = await channel.declare_queue(
-        "image-queue-drivebc",
+        "image-queue-consumer",
         durable=True,
         exclusive=False,
         auto_delete=False
