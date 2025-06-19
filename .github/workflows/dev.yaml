@@ -84,9 +84,9 @@ jobs:
         openshift_token: ${{ secrets.OPENSHIFT_GOLD_TOKEN }}
         namespace: ${{ vars.OPENSHIFT_NAMESPACE }}
         insecure_skip_tls_verify: false
-#    - name: Helm upgrade on OpenShift Gold Environment
-#      run: |
-#        helm upgrade dev-ride -f ./infrastructure/main/values-dev.yaml ./infrastructure/main --set webapp.image.tag="sha-${{ github.sha }}"
+    - name: Helm upgrade on OpenShift Gold Environment
+      run: |
+        helm upgrade dev-image-ingestion-service -f ./infrastructure/main/values-dev.yaml ./infrastructure/main --set image.tag="sha-${{ github.sha }}"
 
   # I have this run after the push to Gold because I want to make sure that Gold runs the migrations first. Gold DR can't run migrations as DB is read-only
 #  update-openshift-golddr:
