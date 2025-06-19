@@ -41,19 +41,27 @@ def is_jpg_image(image_bytes: bytes) -> bool:
         return False
 
 
-app = FastAPI()
+app = FastAPI(
+    title="MOTT Image Receiver Service",
+    version="1.0.0",
+    description="Handles image ingestion with auth per camera/location.",
+    docs_url="/docs", 
+    redoc_url="/redoc",
+    openapi_url="/openapi.json"
+)
 
 # Health check endpoint
-@app.get("/healthz")
+@app.get("/api/healthz")
 async def health_check():
     return {"status": "ok"}
 
 # Metrics endpoint
-Instrumentator().instrument(app).expose(app)
+Instrumentator().instrument(app).expose(app, endpoint="/api/metrics")
+
 
 # Image ingest endpoint
-@app.post("/images")
-async def passthrough(request: Request,
+@app.post("/api/images")
+async def receive_image(request: Request,
                         image: UploadFile = File(...),
                         camera_id: str = Header(...),
                         auth_data=Depends(authenticate_request),

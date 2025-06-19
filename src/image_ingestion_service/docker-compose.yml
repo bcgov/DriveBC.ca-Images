@@ -1,18 +1,6 @@
 version: "3.9"
 
 services:
-  # nginx:
-  #   image: nginx:alpine
-  #   container_name: nginx-drivebc-image
-  #   ports:
-  #     - "8080:80"
-  #   volumes:
-  #     - ./nginx/nginx.conf:/etc/nginx/nginx.conf
-  #     - ./nginx/.htpasswd:/etc/nginx/.htpasswd
-  #     - ./nginx/ip_whitelist.conf:/etc/nginx/ip_whitelist.conf:ro
-  #   depends_on:
-  #     - image-receiver
-
   image-receiver:
     container_name: image-receiver-drivebc-image
     build: ./image_receiver
@@ -24,16 +12,6 @@ services:
       - CAMERA_IP_MAPPING=${CAMERA_IP_MAPPING}
       - LOCATION_USER_PASS_MAPPING=${LOCATION_USER_PASS_MAPPING}
       - CAMERA_LOCATION_MAPPING=${CAMERA_LOCATION_MAPPING}
-
-  # passthrough-service:
-  #   container_name: passthrough-service-drivebc-image
-  #   build: ./passthrough_service
-  #   ports:
-  #     - "8001:8001"
-  #   environment:
-  #     - RABBITMQ_URL=${RABBITMQ_URL}
-  #   depends_on:
-  #     - ftp-server
 
   ftp-server:
     container_name: ftp-server-drivebc-image
