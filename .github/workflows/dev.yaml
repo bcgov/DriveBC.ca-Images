@@ -84,6 +84,9 @@ jobs:
         openshift_token: ${{ secrets.OPENSHIFT_GOLD_TOKEN }}
         namespace: ${{ vars.OPENSHIFT_NAMESPACE }}
         insecure_skip_tls_verify: false
+    - name: Print current directory
+      run: |
+        pwd
     - name: Helm upgrade on OpenShift Gold Environment
       run: |
         helm upgrade dev-image-ingestion-service -f ./infrastructure/main/values-dev.yaml ./infrastructure/main --set image.tag="sha-${{ github.sha }}"
