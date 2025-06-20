@@ -3,12 +3,19 @@ apiVersion: route.openshift.io/v1
 metadata:
   name: {{ template "app.fullname" . }}
   labels: {{ include "app.labels" . | nindent 4 }}
-{{ if .Values.route.ipallowlist }}
   annotations:
+    {{ if .Values.route.ipallowlist }}
     haproxy.router.openshift.io/ip_whitelist: {{ .Values.route.ipallowlist  }}
-{{ end }}
+    {{ end }}
+    haproxy.router.openshift.io/rate-limit-connections: "true"
+    haproxy.router.openshift.io/rate-limit-connections.concurrent-tcp: "20"
+    haproxy.router.openshift.io/rate-limit-connections.rate-tcp: "50"
+    haproxy.router.openshift.io/rate-limit-connections.rate-http: "20"
+    haproxy.router.openshift.io/disable_cookies: "true"
+    haproxy.router.openshift.io/rewrite-target: /
 spec:
   host: {{ .Values.route.host }}
+  path: /image-ingestion/
   to:
     kind: Service
     name: {{ template "app.fullname" . }}
@@ -17,4 +24,36 @@ spec:
     targetPort: http
   tls:
     termination: edge
-    insecureEdgeTerminationPolicy: Redirect
+    insecureEdgeTerminationPolicy: Allow
+
+
+---
+# Vanity URL
+kind: Route
+apiVersion: route.openshift.io/v1
+metadata:
+  name: {{ template "app.fullname" . }}-vanityurl
+  labels: {{ include "app.labels" . | nindent 4 }}
+  annotations:
+    {{ if .Values.route.ipallowlist }}
+    haproxy.router.openshift.io/ip_whitelist: {{ .Values.route.ipallowlist  }}
+    {{ end }}
+    haproxy.router.openshift.io/rate-limit-connections: "true"
+    haproxy.router.openshift.io/rate-limit-connections.concurrent-tcp: "20"
+    haproxy.router.openshift.io/rate-limit-connections.rate-tcp: "50"
+    haproxy.router.openshift.io/rate-limit-connections.rate-http: "20"
+    haproxy.router.openshift.io/disable_cookies: "true"
+    haproxy.router.openshift.io/rewrite-target: /
+spec:
+  host: {{ .Values.route.vanityurl }}
+  path: /image-ingestion/
+  to:
+    kind: Service
+    name: {{ template "app.fullname" . }}
+    weight: 100
+  port:
+    targetPort: http
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Allow
+
