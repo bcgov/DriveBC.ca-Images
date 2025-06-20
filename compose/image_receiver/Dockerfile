@@ -1,5 +1,5 @@
 # ---------- Stage 1: Build with dependencies ----------
-FROM python:3.12-alpine as builder
+FROM python:3.12-alpine AS builder
 
 WORKDIR /build
 
