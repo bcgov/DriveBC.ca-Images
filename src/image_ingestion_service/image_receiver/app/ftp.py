@@ -7,11 +7,11 @@ import logging
 logger = logging.getLogger(__name__)
 
 async def upload_to_ftp(image_bytes: bytes, filename: str, camera_id: str):
-    host = os.getenv("FTP_HOST", "ftp-server")
+    host = os.getenv("FTP_HOST", "")
     port = int(os.getenv("FTP_PORT", 21))
     user = os.getenv("FTP_USER", "test")
     password = os.getenv("FTP_PASS", "test")
-    target_dir = os.getenv("FTP_TARGET_DIR", "uploads")
+    target_dir = os.getenv("FTP_TARGET_DIR", "")
     async with aioftp.Client.context(host, port, user, password) as client:
         logger.info(f"Connected to FTP server {host}:{port} as user {user}")
         try:

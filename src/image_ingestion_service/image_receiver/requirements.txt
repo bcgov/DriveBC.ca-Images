@@ -6,3 +6,5 @@ pillow
 prometheus_fastapi_instrumentator
 aioftp
 aio_pika
+sqlalchemy
+pyodbc

@@ -11,12 +11,9 @@ async def send_to_rabbitmq(image_bytes, filename, camera_id):
     connection = await aio_pika.connect_robust(rb_url)
     
     async with connection:
-        # channel = await connection.channel()
-        # exchange = await channel.get_exchange("amq.fanout")
-
         channel = await connection.channel()
         exchange = await channel.declare_exchange(
-                name="test.fanout_image_test",  # You can use a custom name if you prefer
+                name="test.fanout_image_test",
                 type=aio_pika.ExchangeType.FANOUT,
                 durable=True
             )
