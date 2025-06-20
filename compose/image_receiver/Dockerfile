@@ -1,11 +1,24 @@
-FROM python:3.12-slim
+FROM python:3.12-alpine
 
 WORKDIR /app
 
+# Install build dependencies
+RUN apk add --no-cache \
+    build-base \
+    libffi-dev \
+    jpeg-dev \
+    zlib-dev \
+    musl-dev \
+    python3-dev \
+    cargo
+
+# Copy and install dependencies
 COPY ./src/image_ingestion_service/image_receiver/requirements.txt requirements.txt
+RUN pip install --no-cache-dir --upgrade pip \
+    && pip install --no-cache-dir -r requirements.txt
 
-RUN pip install --no-cache-dir -r requirements.txt
+# Copy application code
+COPY ./src/image_ingestion_service/image_receiver /app
 
-COPY ./src/image_ingestion_service/image_receiver /app 
-
+# Command to run FastAPI app
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
