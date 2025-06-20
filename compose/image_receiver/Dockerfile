@@ -2,16 +2,6 @@ FROM python:3.12-alpine
 
 WORKDIR /app
 
-# Install build dependencies
-RUN apk add --no-cache \
-    build-base \
-    libffi-dev \
-    jpeg-dev \
-    zlib-dev \
-    musl-dev \
-    python3-dev \
-    cargo
-
 # Copy and install dependencies
 COPY ./src/image_ingestion_service/image_receiver/requirements.txt requirements.txt
 RUN pip install --no-cache-dir --upgrade pip \
