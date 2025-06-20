@@ -1,0 +1,2 @@
+route:
+  host: dev-image-ingestion-service.apps.golddr.devops.gov.bc.ca # Hostname for the route

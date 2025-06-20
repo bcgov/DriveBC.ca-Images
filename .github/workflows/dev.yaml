@@ -88,32 +88,30 @@ jobs:
       run: |
         helm upgrade dev-image-ingestion-service -f ./infrastructure/main/values-dev.yaml ./infrastructure/main --set image.tag="sha-${{ github.sha }}"
 
-  # I have this run after the push to Gold because I want to make sure that Gold runs the migrations first. Gold DR can't run migrations as DB is read-only
-#  update-openshift-golddr:
-#    needs: [update-openshift-gold] 
-#    runs-on: ubuntu-latest
-#    name: Deploy Latest Images to OpenShift GoldDR
-#    environment:
-#      name: dev
-#      url: https://dev-ride.apps.golddr.devops.gov.bc.ca
-#    steps:
-#    - name: Checkout code
-#      uses: actions/checkout@v4
+  update-openshift-golddr:
+    needs: [build-and-push-ingestion-service]
+    runs-on: ubuntu-latest
+    name: Deploy Latest Images to OpenShift GoldDR
+    environment:
+      name: dev
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
 
-#    - name: Install CLI tools from OpenShift Mirror
-#      uses: redhat-actions/openshift-tools-installer@v1
-#      with:
-#        oc: "4"
-#        skip_cache: true
-#     
-#    - name: Authenticate and set context
-#      uses: redhat-actions/oc-login@v1
-#      with:
-#        openshift_server_url: ${{ vars.OPENSHIFT_GOLDDR_SERVER }}
-#        openshift_token: ${{ secrets.OPENSHIFT_GOLDDR_TOKEN }}
-#        namespace: ${{ vars.OPENSHIFT_NAMESPACE }}
-#        insecure_skip_tls_verify: false
+    - name: Install CLI tools from OpenShift Mirror
+      uses: redhat-actions/openshift-tools-installer@v1
+      with:
+        oc: "4"
+        skip_cache: true
+     
+    - name: Authenticate and set context
+      uses: redhat-actions/oc-login@v1
+      with:
+        openshift_server_url: ${{ vars.OPENSHIFT_GOLDDR_SERVER }}
+        openshift_token: ${{ secrets.OPENSHIFT_GOLDDR_TOKEN }}
+        namespace: ${{ vars.OPENSHIFT_NAMESPACE }}
+        insecure_skip_tls_verify: false
 
-#    - name: Helm upgrade on OpenShift GoldDR Environment
-#      run: |
-#        helm upgrade dev-ride -f ./infrastructure/main/values-dev.yaml -f ./infrastructure/main/values-dev-dr.yaml ./infrastructure/main --set webapp.image.tag="sha-${{ github.sha }}"
+    - name: Helm upgrade on OpenShift GoldDR Environment
+      run: |
+        helm upgrade dev-image-ingestion-service -f ./infrastructure/main/values-dev.yaml -f ./infrastructure/main/values-dev-dr.yaml ./infrastructure/main --set image.tag="sha-${{ github.sha }}"
