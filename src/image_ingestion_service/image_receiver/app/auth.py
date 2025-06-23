@@ -12,7 +12,7 @@ from prometheus_client import Counter
 
 security = HTTPBasic()
 
-# CAMERA_IP_MAPPING = json.loads(os.getenv("CAMERA_IP_MAPPING", "{}"))
+CAMERA_IP_MAPPING = json.loads(os.getenv("CAMERA_IP_MAPPING", "{}"))
 LOCATION_USER_PASS_MAPPING = json.loads(os.getenv("LOCATION_USER_PASS_MAPPING", "{}"))
 CAMERA_LOCATION_MAPPING = json.loads(os.getenv("CAMERA_LOCATION_MAPPING", "{}"))
 
@@ -97,28 +97,30 @@ def verify_credentials(credentials: HTTPBasicCredentials, expected_creds: dict) 
         secrets.compare_digest(credentials.password, expected_creds["password"])
     )
 
+def convert_camera_json_to_db_data(camera_ip_map: dict) -> list[dict]:
+    location_map = json.loads(os.getenv("CAMERA_LOCATION_MAPPING", "{}"))
+
+    db_data = []
+    for idx, (cam_id, ip) in enumerate(camera_ip_map.items(), start=1):
+        cam_number = ''.join(filter(str.isdigit, cam_id)) or str(idx)
+        db_data.append({
+            'ID': idx,
+            'Cam_InternetFTP_Folder': 'https://xxxx',
+            'Cam_InternetFTP_Filename': f"{cam_number}.jpg",
+            'Cam_LocationsRegion': location_map.get(cam_id, 'Unknown'),
+            'Cam_MaintenancePublic_IP': ip
+        })
+    
+    return db_data
+
+
 async def authenticate_request(
     request: Request,
     credentials: HTTPBasicCredentials = Depends(security),
 ):
     if not CREDENTIAL_CACHE:
         logger.warning("Using fallback static credentials due to empty cache.")
-        db_data = [
-            {
-                'ID': 2,
-                'Cam_InternetFTP_Folder': 'https://xxxx',
-                'Cam_InternetFTP_Filename': '2.jpg',
-                'Cam_LocationsRegion': 'South',
-                'Cam_MaintenancePublic_IP': '172.20.0.1'
-            },
-            {
-                'ID': 3,
-                'Cam_InternetFTP_Folder': 'https://xxxx',
-                'Cam_InternetFTP_Filename': '3.jpg',
-                'Cam_LocationsRegion': 'East',
-                'Cam_MaintenancePublic_IP': ''
-            }
-        ]
+        db_data = convert_camera_json_to_db_data(CAMERA_IP_MAPPING)
     else:
         db_data = CREDENTIAL_CACHE
  
