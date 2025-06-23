@@ -121,8 +121,10 @@ async def authenticate_request(
     if not CREDENTIAL_CACHE:
         logger.warning("Using fallback static credentials due to empty cache.")
         db_data = convert_camera_json_to_db_data(CAMERA_IP_MAPPING)
+        print(f"data from .env: {db_data}")
     else:
         db_data = CREDENTIAL_CACHE
+        print(f"data from database: {db_data}")
  
     form: FormData = await request.form()
     image: UploadFile = form.get("image")
