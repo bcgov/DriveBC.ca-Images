@@ -73,7 +73,8 @@ Instrumentator().instrument(app).expose(app, endpoint="/api/metrics")
 @app.post("/api/images")
 async def receive_image(image: UploadFile = File(...),
                         auth_data=Depends(authenticate_request),
-                        _=Depends(cam_rate_limit_dep()),
+                        # Use the rate limiter to limit requests per camera once Redis is set up
+                        # _=Depends(cam_rate_limit_dep()),
                         ):
     camera_id = auth_data["camera_id"]
 
