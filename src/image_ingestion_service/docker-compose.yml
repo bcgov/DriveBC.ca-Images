@@ -1,4 +1,4 @@
-version: "3.9"
+# version: "3.9"
 
 services:
   image-receiver:
@@ -33,6 +33,16 @@ services:
       - FTP_USER_HOME=/home/test
     volumes:
       - ./ftp-data:/home/test
+    networks:
+      - internal-network
+
+  redis:
+    image: "redis:6.2"
+    container_name: redis-drivebc-image
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    ports:
+      - "6379:6379"
     networks:
       - internal-network
 

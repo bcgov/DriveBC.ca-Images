@@ -8,3 +8,5 @@ aioftp
 aio_pika
 sqlalchemy
 pyodbc
+fastapi-limiter
+redis
