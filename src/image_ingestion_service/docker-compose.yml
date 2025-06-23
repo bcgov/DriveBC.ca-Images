@@ -45,6 +45,20 @@ services:
       - "6379:6379"
     networks:
       - internal-network
+  
+  # consumer:
+  #   container_name: consumer-drivebc-image
+  #   build:
+  #     context: ./consumer
+  #   environment:
+  #     - RABBITMQ_URL=${RABBITMQ_URL}
+
+  consumer-drivebc:
+    container_name: consumer-drivebc-drivebc-image
+    build:
+      context: ./consumer_drivebc
+    environment:
+      - RABBITMQ_URL=${RABBITMQ_URL}
 
 networks:
   internal-network:
@@ -56,19 +70,7 @@ networks:
 
   
 
-  # consumer:
-  #   container_name: consumer-drivebc-image
-  #   build:
-  #     context: ./consumer
-  #   environment:
-  #     - RABBITMQ_URL=${RABBITMQ_URL}
-
-  # consumer-drivebc:
-  #   container_name: consumer-drivebc-drivebc-image
-  #   build:
-  #     context: ./consumer_drivebc
-  #   environment:
-  #     - RABBITMQ_URL=${RABBITMQ_URL}
+  
 
 
 

@@ -32,14 +32,14 @@ async def lifespan(app: FastAPI):
     # Startup
     task = start_credential_refresh_task()
 
-    # Rate limiter
-    redis_client = await redis.from_url("redis://redis", encoding="utf8", decode_responses=True)
-    await FastAPILimiter.init(redis_client)
+    # # Rate limiter
+    # redis_client = await redis.from_url("redis://redis", encoding="utf8", decode_responses=True)
+    # await FastAPILimiter.init(redis_client)
 
     yield
     # Shutdown
     task.cancel()
-    await redis.close()
+    # await redis.close()
 
 app = FastAPI(
     title="MOTT Image Ingestion Service",
