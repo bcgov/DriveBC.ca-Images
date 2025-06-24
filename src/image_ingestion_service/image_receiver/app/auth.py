@@ -74,12 +74,16 @@ def start_credential_refresh_task():
 def validate_filename_and_get_region_ip(data: list, filename: str) -> tuple[str, str]:
     for record in data:
         clean_filename = record.get("Cam_InternetFTP_Filename", "").strip()
+        print(f"Checking record: {record}")
         if clean_filename == filename:
             region = record.get("Cam_LocationsRegion", "").strip()
             ip_address = record.get("Cam_MaintenancePublic_IP", "").strip()
             return region, ip_address
+        else:
+            logging.debug(f"Filename {clean_filename} does not match {filename}")
 
     # If no match found, log and raise error
+    
     logging.error(f"No matching record found for filename: {filename}")
     raise ValueError("Unauthorized or unknown image filename")
 
@@ -102,7 +106,8 @@ def convert_camera_json_to_db_data(camera_ip_map: dict) -> list[dict]:
 
     db_data = []
     for idx, (cam_id, ip) in enumerate(camera_ip_map.items(), start=1):
-        cam_number = ''.join(filter(str.isdigit, cam_id)) or str(idx)
+        # cam_number = ''.join(filter(str.isdigit, cam_id)) or str(idx)
+        cam_number = cam_id
         db_data.append({
             'ID': idx,
             'Cam_InternetFTP_Folder': 'https://xxxx',
