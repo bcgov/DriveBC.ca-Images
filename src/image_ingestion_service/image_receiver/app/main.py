@@ -83,7 +83,7 @@ async def custom_basic_auth(request: Request):
     print(f"DEBUG - Invalid Authorization header: {auth_header}")
     print(f"DEBUG - scheme: {scheme}")
     print(f"DEBUG - credentials: {credentials}")
-    
+
     if scheme.lower() != "basic" or not credentials:
         print(f"DEBUG - Invalid Authorization header: {auth_header}")  # Remove in production!
         # raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid Authorization header")
@@ -103,7 +103,7 @@ async def custom_basic_auth(request: Request):
 
 # Image ingest endpoint
 @app.post("/api/images")
-async def receive_image(image: UploadFile = File(...),
+async def receive_image(image: UploadFile = File(..., alias="file"),
                         # # bruce test
                         # auth_data=Depends(authenticate_request),
 
