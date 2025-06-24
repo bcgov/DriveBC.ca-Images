@@ -134,13 +134,18 @@ async def authenticate_request(
         db_data = CREDENTIAL_CACHE
         print(f"data from database: {db_data}")
  
-    form: FormData = await request.form()
-    image: UploadFile = form.get("image")
+    # form: FormData = await request.form()
+    # image: UploadFile = form.get("image")
 
+    image = await request.body()
     if not image:
         raise HTTPException(status_code=400, detail="Image file is required")
 
-    filename = image.filename
+    # filename = image.filename
+    content_disposition = request.headers.get("content-disposition")
+    filename = "123.jpg"
+    if content_disposition and "filename=" in content_disposition:
+        filename = content_disposition.split("filename=")[-1].strip('"')
     camera_id = os.path.splitext(filename)[0]
     
     try:
