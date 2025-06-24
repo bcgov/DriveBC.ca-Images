@@ -122,7 +122,12 @@ async def index():
 async def receive_image(request: Request, 
                         # image: UploadFile = File(..., alias="image"),
                         # # bruce test
-                        auth_data=Depends(authenticate_request),
+
+
+
+                        # auth_data=Depends(authenticate_request),
+
+
 
                         # auth_data: tuple = Depends(custom_basic_auth)
                         # Use the rate limiter to limit requests per camera once Redis is set up
