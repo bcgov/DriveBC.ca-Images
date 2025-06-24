@@ -114,39 +114,16 @@ def convert_camera_json_to_db_data(camera_ip_map: dict) -> list[dict]:
     return db_data
 
 
-# bruce test
-from fastapi import Request, HTTPException, status
-from fastapi.security.utils import get_authorization_scheme_param
-import base64
-
-async def custom_basic_auth(request: Request):
-    auth_header = request.headers.get("Authorization")
-    if not auth_header:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing Authorization header")
-
-    scheme, credentials = get_authorization_scheme_param(auth_header)
-    if scheme.lower() != "basic" or not credentials:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid Authorization header")
-
-    try:
-        decoded = base64.b64decode(credentials).decode("utf-8")
-        username, password = decoded.split(":", 1)
-        print(f"DEBUG - Username: {username}, Password: {password}")  # Remove in production!
-    except Exception as e:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid basic auth format")
-
-    return username, password
-
 
 async def authenticate_request(
     request: Request, 
-    # credentials: HTTPBasicCredentials = Depends(security),
-    credentials: tuple = Depends(custom_basic_auth)
+    credentials: HTTPBasicCredentials = Depends(security),
+    # credentials: tuple = Depends(custom_basic_auth)
     
 ):
     
-    username, password = credentials
-    print(f"Received credentials - Username: {username}, Password: {password}")
+    # username, password = credentials
+    # print(f"Received credentials - Username: {username}, Password: {password}")
 
     
     if not CREDENTIAL_CACHE:
@@ -213,12 +190,12 @@ async def authenticate_request(
             logger.warning(f"Credential mismatch for location {camera_location}")
             record_auth_failure()
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid credentials")
-    # bruce test   
-    # # Validate credentials
-    # if not verify_credentials(credentials, expected_creds):
-    #     logger.warning(f"Invalid credentials for camera {camera_id}")
-    #     record_auth_failure()
-    #     raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid credentials")
+      
+    # Validate credentials
+    if not verify_credentials(credentials, expected_creds):
+        logger.warning(f"Invalid credentials for camera {camera_id}")
+        record_auth_failure()
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid credentials")
     
     # Record successful authentication
     record_ip_success()

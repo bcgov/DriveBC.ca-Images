@@ -69,14 +69,47 @@ async def health_check():
 # Metrics endpoint
 Instrumentator().instrument(app).expose(app, endpoint="/api/metrics")
 
+# bruce test
+from fastapi import Request, HTTPException, status
+from fastapi.security.utils import get_authorization_scheme_param
+import base64
+
+async def custom_basic_auth(request: Request):
+    auth_header = request.headers.get("Authorization")
+    if not auth_header:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing Authorization header")
+
+    scheme, credentials = get_authorization_scheme_param(auth_header)
+    if scheme.lower() != "basic" or not credentials:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid Authorization header")
+
+    try:
+        decoded = base64.b64decode(credentials).decode("utf-8")
+        username, password = decoded.split(":", 1)
+        print(f"DEBUG - Username: {username}, Password: {password}")  # Remove in production!
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid basic auth format")
+
+    return username, password
+
+
+
 # Image ingest endpoint
 @app.post("/api/images")
 async def receive_image(image: UploadFile = File(...),
-                        auth_data=Depends(authenticate_request),
+                        # # bruce test
+                        # auth_data=Depends(authenticate_request),
+
+                        auth_data: tuple = Depends(custom_basic_auth)
                         # Use the rate limiter to limit requests per camera once Redis is set up
                         # _=Depends(cam_rate_limit_dep()),
                         ):
-    camera_id = auth_data["camera_id"]
+    username, password = auth_data
+    print(f"Received credentials - Username: {username}, Password: {password}")
+    
+
+    # bruce test
+    camera_id = "456" #auth_data["camera_id"]
 
     image_bytes = await image.read()
     if not is_jpg_image(image_bytes):
