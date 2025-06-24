@@ -119,7 +119,8 @@ async def index():
 # @app.get("/api/images")
 @app.post("/api/images")
 # @app.api_route("/api/images", methods=["GET", "POST"])
-async def receive_image(request: Request, image: UploadFile = File(..., alias="image"),
+async def receive_image(request: Request, 
+                        # image: UploadFile = File(..., alias="image"),
                         # # bruce test
                         # auth_data=Depends(authenticate_request),
 
@@ -130,11 +131,20 @@ async def receive_image(request: Request, image: UploadFile = File(..., alias="i
     # username, password = auth_data
     # print(f"Received credentials - Username: {username}, Password: {password}")
 
-    if request.method == "GET":
-        return JSONResponse(
-            status_code=200,
-            content={"message": "Image upload endpoint is reachable via GET"}
-        )
+    body = await request.body()
+    if not body:
+        raise HTTPException(status_code=400, detail="No image data received")
+
+    # Optional: extract filename from Content-Disposition header
+    content_disposition = request.headers.get("content-disposition")
+    filename = "456.jpg"
+    if content_disposition and "filename=" in content_disposition:
+        filename = content_disposition.split("filename=")[-1].strip('"')
+
+    with open(filename, "wb") as f:
+        f.write(body)
+
+    print(f"Received {filename}, size: {len(body)} bytes")
 
     path_hit = request.url.path # Gets the actual path, e.g., "/api/upload"
     logger.info(f"Camera sent a GET request to {path_hit}")
@@ -161,9 +171,16 @@ async def receive_image(request: Request, image: UploadFile = File(..., alias="i
     # bruce test
     camera_id = "456" #auth_data["camera_id"]
 
-    image_bytes = await image.read()
+    # image_bytes = await image.read()
+
+    image_bytes = await request.body()
+    if not image_bytes:
+        raise HTTPException(status_code=400, detail="No image data received")
+
+
+
     if not is_jpg_image(image_bytes):
-        logger.warning(f"Invalid image format ({image.content_type})")
+        logger.warning(f"Invalid image format")
         raise HTTPException(
             status_code=415,
             detail="The camera image is not in JPG/JPEG format."
