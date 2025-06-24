@@ -100,11 +100,10 @@ async def custom_basic_auth(request: Request):
     # return "test", "test" #username, password
 
 
-@app.get("/api/images")
-async def check_image_upload_path():
-    return {"message": "Image upload endpoint is working."}
+
 
 # Image ingest endpoint
+@app.get("/api/images")
 @app.post("/api/images")
 async def receive_image(request: Request, image: UploadFile = File(..., alias="file"),
                         # # bruce test
@@ -117,6 +116,10 @@ async def receive_image(request: Request, image: UploadFile = File(..., alias="f
     # username, password = auth_data
     # print(f"Received credentials - Username: {username}, Password: {password}")
 
+    path_hit = request.url.path # Gets the actual path, e.g., "/api/upload"
+    logger.info(f"Camera sent a GET request to {path_hit}")
+    logger.info(f"Request Headers: {request.headers}")
+    logger.info(f"Request Content-Type: {request.content_type}")
 
 
      # Log all headers
