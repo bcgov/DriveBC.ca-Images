@@ -108,6 +108,13 @@ async def index():
         content={"message": "Image upload endpoint is reachable via GET"}
     )
 
+@app.get("/")
+async def index():
+    return JSONResponse(
+        status_code=200,
+        content={"message": "Image upload endpoint is reachable via GET root"}
+    )
+
 # Image ingest endpoint
 # @app.get("/api/images")
 @app.post("/api/images")
