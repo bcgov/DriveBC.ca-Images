@@ -122,9 +122,9 @@ async def index():
 async def receive_image(request: Request, 
                         # image: UploadFile = File(..., alias="image"),
                         # # bruce test
-                        # auth_data=Depends(authenticate_request),
+                        auth_data=Depends(authenticate_request),
 
-                        auth_data: tuple = Depends(custom_basic_auth)
+                        # auth_data: tuple = Depends(custom_basic_auth)
                         # Use the rate limiter to limit requests per camera once Redis is set up
                         # _=Depends(cam_rate_limit_dep()),
                         ):
@@ -137,12 +137,12 @@ async def receive_image(request: Request,
 
     # Optional: extract filename from Content-Disposition header
     content_disposition = request.headers.get("content-disposition")
-    filename = "456.jpg"
+    filename = "123.jpg"
     if content_disposition and "filename=" in content_disposition:
         filename = content_disposition.split("filename=")[-1].strip('"')
 
-    with open(filename, "wb") as f:
-        f.write(body)
+    # with open(filename, "wb") as f:
+    #     f.write(body)
 
     print(f"Received {filename}, size: {len(body)} bytes")
 
@@ -169,7 +169,7 @@ async def receive_image(request: Request,
     
 
     # bruce test
-    camera_id = "456" #auth_data["camera_id"]
+    camera_id = auth_data["camera_id"]
 
     # image_bytes = await image.read()
 
