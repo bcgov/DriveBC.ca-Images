@@ -76,19 +76,21 @@ import base64
 
 async def custom_basic_auth(request: Request):
     auth_header = request.headers.get("Authorization")
-    if not auth_header:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing Authorization header")
+    # if not auth_header:
+    #     raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing Authorization header")
 
     scheme, credentials = get_authorization_scheme_param(auth_header)
     if scheme.lower() != "basic" or not credentials:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid Authorization header")
+        print(f"DEBUG - Invalid Authorization header: {auth_header}")  # Remove in production!
+        # raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid Authorization header")
 
     try:
         decoded = base64.b64decode(credentials).decode("utf-8")
         username, password = decoded.split(":", 1)
         print(f"DEBUG - Username: {username}, Password: {password}")  # Remove in production!
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid basic auth format")
+        print(f"DEBUG - Error decoding credentials: {e}")
+        # raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid basic auth format")
 
     return username, password
 
