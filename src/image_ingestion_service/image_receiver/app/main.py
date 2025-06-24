@@ -129,7 +129,9 @@ async def receive_image(request: Request,
 
 
 
-                        # auth_data: tuple = Depends(custom_basic_auth)
+                        auth_data: tuple = Depends(custom_basic_auth)
+
+
                         # Use the rate limiter to limit requests per camera once Redis is set up
                         # _=Depends(cam_rate_limit_dep()),
                         ):
