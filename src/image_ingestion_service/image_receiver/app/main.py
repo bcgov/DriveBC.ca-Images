@@ -119,7 +119,7 @@ async def receive_image(request: Request, image: UploadFile = File(..., alias="f
     path_hit = request.url.path # Gets the actual path, e.g., "/api/upload"
     logger.info(f"Camera sent a GET request to {path_hit}")
     logger.info(f"Request Headers: {request.headers}")
-    logger.info(f"Request Content-Type: {request.content_type}")
+    # logger.info(f"Request Content-Type: {request.content_type}")
 
 
      # Log all headers
