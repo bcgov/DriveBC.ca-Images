@@ -80,20 +80,24 @@ async def custom_basic_auth(request: Request):
     #     raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing Authorization header")
 
     scheme, credentials = get_authorization_scheme_param(auth_header)
+    print(f"DEBUG - Invalid Authorization header: {auth_header}")
+    print(f"DEBUG - scheme: {scheme}")
+    print(f"DEBUG - credentials: {credentials}")
+    
     if scheme.lower() != "basic" or not credentials:
         print(f"DEBUG - Invalid Authorization header: {auth_header}")  # Remove in production!
         # raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid Authorization header")
 
-    try:
-        print(f"DEBUG - Decoding credentials: {credentials}")  # Remove in production!
-        decoded = base64.b64decode(credentials).decode("utf-8")
-        username, password = decoded.split(":", 1)
-        print(f"DEBUG - Username: {username}, Password: {password}")  # Remove in production!
-    except Exception as e:
-        print(f"DEBUG - Error decoding credentials: {e}")
-        # raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid basic auth format")
+    # try:
+    #     print(f"DEBUG - Decoding credentials: {credentials}")  # Remove in production!
+    #     decoded = base64.b64decode(credentials).decode("utf-8")
+    #     username, password = decoded.split(":", 1)
+    #     print(f"DEBUG - Username: {username}, Password: {password}")  # Remove in production!
+    # except Exception as e:
+    #     print(f"DEBUG - Error decoding credentials: {e}")
+    #     # raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid basic auth format")
 
-    return "test", "test" #username, password
+    # return "test", "test" #username, password
 
 
 
@@ -107,8 +111,8 @@ async def receive_image(image: UploadFile = File(...),
                         # Use the rate limiter to limit requests per camera once Redis is set up
                         # _=Depends(cam_rate_limit_dep()),
                         ):
-    username, password = auth_data
-    print(f"Received credentials - Username: {username}, Password: {password}")
+    # username, password = auth_data
+    # print(f"Received credentials - Username: {username}, Password: {password}")
     
 
     # bruce test
