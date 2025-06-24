@@ -174,7 +174,8 @@ async def receive_image(request: Request,
     
 
     # bruce test
-    camera_id = auth_data["camera_id"]
+    # camera_id = auth_data["camera_id"]
+    camera_id = "456"
 
     # image_bytes = await image.read()
 
