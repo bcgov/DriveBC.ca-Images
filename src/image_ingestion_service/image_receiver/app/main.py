@@ -119,7 +119,7 @@ async def index():
 # @app.get("/api/images")
 @app.post("/api/images")
 # @app.api_route("/api/images", methods=["GET", "POST"])
-async def receive_image(request: Request, image: UploadFile = File(..., alias="file"),
+async def receive_image(request: Request, image: UploadFile = File(..., alias="image"),
                         # # bruce test
                         # auth_data=Depends(authenticate_request),
 
