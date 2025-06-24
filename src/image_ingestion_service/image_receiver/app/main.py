@@ -103,7 +103,7 @@ async def custom_basic_auth(request: Request):
 
 # Image ingest endpoint
 @app.post("/api/images")
-async def receive_image(image: UploadFile = File(..., alias="file"),
+async def receive_image(request: Request, image: UploadFile = File(..., alias="file"),
                         # # bruce test
                         # auth_data=Depends(authenticate_request),
 
@@ -113,6 +113,23 @@ async def receive_image(image: UploadFile = File(..., alias="file"),
                         ):
     # username, password = auth_data
     # print(f"Received credentials - Username: {username}, Password: {password}")
+
+
+
+     # Log all headers
+    print("==== HEADERS ====")
+    for k, v in request.headers.items():
+        print(f"{k}: {v}")
+
+    # Try to parse form and log the fields
+    try:
+        form = await request.form()
+        for key, value in form.items():
+            print(f"Form field: {key}, type: {type(value)}")
+            if hasattr(value, "filename"):
+                print(f"-> File: {value.filename}, content_type: {value.content_type}")
+    except Exception as e:
+        print("Error parsing form:", e)
     
 
     # bruce test
