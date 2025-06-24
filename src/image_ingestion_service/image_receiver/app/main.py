@@ -101,12 +101,17 @@ async def custom_basic_auth(request: Request):
     # return "test", "test" #username, password
 
 
-
+@app.get("/api/images")
+async def index():
+    return JSONResponse(
+        status_code=200,
+        content={"message": "Image upload endpoint is reachable via GET"}
+    )
 
 # Image ingest endpoint
 # @app.get("/api/images")
-# @app.post("/api/images")
-@app.api_route("/api/images", methods=["GET", "POST"])
+@app.post("/api/images")
+# @app.api_route("/api/images", methods=["GET", "POST"])
 async def receive_image(request: Request, image: UploadFile = File(..., alias="file"),
                         # # bruce test
                         # auth_data=Depends(authenticate_request),
