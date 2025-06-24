@@ -100,6 +100,9 @@ async def custom_basic_auth(request: Request):
     # return "test", "test" #username, password
 
 
+@app.get("/api/images")
+async def check_image_upload_path():
+    return {"message": "Image upload endpoint is working."}
 
 # Image ingest endpoint
 @app.post("/api/images")
