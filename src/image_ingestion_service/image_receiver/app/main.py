@@ -1,4 +1,5 @@
 from fastapi import FastAPI, HTTPException, Depends, Request
+from fastapi.responses import JSONResponse
 import logging
 from fastapi import File, UploadFile
 from PIL import Image
@@ -103,8 +104,9 @@ async def custom_basic_auth(request: Request):
 
 
 # Image ingest endpoint
-@app.get("/api/images")
-@app.post("/api/images")
+# @app.get("/api/images")
+# @app.post("/api/images")
+@app.api_route("/api/images", methods=["GET", "POST"])
 async def receive_image(request: Request, image: UploadFile = File(..., alias="file"),
                         # # bruce test
                         # auth_data=Depends(authenticate_request),
@@ -115,6 +117,12 @@ async def receive_image(request: Request, image: UploadFile = File(..., alias="f
                         ):
     # username, password = auth_data
     # print(f"Received credentials - Username: {username}, Password: {password}")
+
+    if request.method == "GET":
+        return JSONResponse(
+            status_code=200,
+            content={"message": "Image upload endpoint is reachable via GET"}
+        )
 
     path_hit = request.url.path # Gets the actual path, e.g., "/api/upload"
     logger.info(f"Camera sent a GET request to {path_hit}")
