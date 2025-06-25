@@ -25,8 +25,10 @@ engine = create_engine(connection_url)
 
 # Query function
 def get_all_from_db():
+    sql_statement = "SELECT [ID], [Cam_InternetFTP_Folder], [Cam_InternetFTP_Filename], [Cam_LocationsRegion], [Cam_MaintenancePublic_IP] FROM [WEBCAM_DEV].[dbo].[Cams]"
+    print(f"Executing SQL: {sql_statement}")
     with engine.connect() as connection:
-        result = connection.execute(text("SELECT * FROM credentials"))
+        print("Connected to the database successfully")
+        result = connection.execute(text(sql_statement))
         rows = [dict(row._mapping) for row in result]
         return rows
-    # return None
