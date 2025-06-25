@@ -80,7 +80,7 @@ async def upload_to_ftp(image_bytes: bytes, filename: str, camera_id: str) -> bo
     target_dir = os.getenv("FTP_TARGET_DIR", "")
 
     ftp_client = aioftp.Client()
-    ftp_client.passive = False #True
+    ftp_client.passive = True
 
     try:
         await ftp_client.connect(host, port)
