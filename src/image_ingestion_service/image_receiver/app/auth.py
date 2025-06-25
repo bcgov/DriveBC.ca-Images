@@ -56,7 +56,7 @@ def record_rabbitmq_failure():
 async def update_credentials_periodically():
     while True:
         try:
-            logger.info("Refreshing credentials from DB...")
+            # logger.info("Refreshing credentials from DB...")
             creds = get_all_from_db()  
             print(f"Fetched {len(creds)} credentials from the database:")
             # for row in creds:
@@ -133,7 +133,7 @@ async def authenticate_request(
         print(f"Using {len(db_data)} credentials from static mapping.")
     else:
         db_data = CREDENTIAL_CACHE
-        print(f"Using {len(db_data)} credentials from cache.")
+        # print(f"Using {len(db_data)} credentials from cache.")
         
     image = await request.body()
     if not image:

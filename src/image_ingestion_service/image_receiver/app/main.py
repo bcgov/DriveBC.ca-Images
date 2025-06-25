@@ -67,11 +67,11 @@ def cam_rate_limit_dep():
 # For debugging purposes
 @app.middleware("http")
 async def log_headers(request: Request, call_next):
-    if request.method == "POST":
-        print("POST Request Headers:", dict(request.headers))
-    response = await call_next(request)
-    return response
-    # pass
+    # if request.method == "POST":
+    #     print("POST Request Headers:", dict(request.headers))
+    # response = await call_next(request)
+    # return response
+    pass
 
 
 # Health check endpoint
