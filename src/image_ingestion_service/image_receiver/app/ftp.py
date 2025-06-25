@@ -114,11 +114,24 @@ async def upload_to_ftp(image_bytes: bytes, filename: str, camera_id: str) -> bo
             else:
                 logger.warning(f"Unexpected FTP error when trying to remove file: {e}")
 
-        # Upload from in-memory bytes
-        logger.info(f"Uploading in-memory bytes to {remote_path} on FTP server...")
-        stream = io.BytesIO(image_bytes)
-        await ftp_client.upload_stream(stream, filename)
-        logger.info(f"Uploaded {filename} to FTP server at {remote_path}")
+        # Save bytes to temp file asynchronously
+        # Create temp file path in system temp folder
+        tmp_dir = tempfile.gettempdir()
+        tmp_file_path = Path(tmp_dir) / filename
+        async with aiofiles.open(tmp_file_path, "wb") as tmp_file:
+            await tmp_file.write(image_bytes)
+        logger.info(f"Saved image to temporary file {tmp_file_path}")
+
+        # # Upload from in-memory bytes
+        # logger.info(f"Uploading in-memory bytes to {remote_path} on FTP server...")
+        # stream = io.BytesIO(image_bytes)
+        # await ftp_client.upload_stream(stream, filename)
+        # logger.info(f"Uploaded {filename} to FTP server at {remote_path}")
+
+         # Upload the file from disk
+        logger.info(f"Uploading {tmp_file_path} to FTP as {remote_path}...")
+        await ftp_client.upload(tmp_file_path, remote_path, write_into=True)
+        logger.info(f"Upload successful")
                 
 
         return True
