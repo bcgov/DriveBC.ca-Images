@@ -126,7 +126,7 @@ async def authenticate_request(
     request: Request, 
     credentials: HTTPBasicCredentials = Depends(security),    
 ): 
-    print(f"Updated CREDENTIAL_CACHE with {CREDENTIAL_CACHE} credentials.")
+    # print(f"Updated CREDENTIAL_CACHE with {CREDENTIAL_CACHE} credentials.")
     if not CREDENTIAL_CACHE:
         logger.warning("Using fallback static credentials due to empty cache.")
         db_data = convert_camera_json_to_db_data(CAMERA_IP_MAPPING)
