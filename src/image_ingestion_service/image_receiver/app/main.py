@@ -62,18 +62,12 @@ async def get_cam_key_from_filename(request: Request):
 def cam_rate_limit_dep():
     return RateLimiter(times=1, seconds=20, identifier=get_cam_key_from_filename)
 
-# @app.middleware("http")
-# async def log_headers(request: Request, call_next):
-#     print("Headers:", dict(request.headers))
-#     response = await call_next(request)
-#     return response
-
 @app.middleware("http")
 async def log_headers(request: Request, call_next):
     if request.method == "POST":
-        print(f"POST Request to {request.url.path} with headers:")
-        for key, value in request.headers.items():
-            print(f"{key}: {value}")
+        print("POST Request Headers:", dict(request.headers))
+        # for key, value in request.headers.items():
+        #     print(f"{key}: {value}")
     response = await call_next(request)
     return response
 
@@ -175,10 +169,10 @@ async def receive_image(request: Request,
     # logger.info(f"Request Content-Type: {request.content_type}")
 
 
-     # Log all headers
-    print("==== HEADERS ====")
-    for k, v in request.headers.items():
-        print(f"{k}: {v}")
+    # # Log all headers
+    # print("==== HEADERS ====")
+    # for k, v in request.headers.items():
+    #     print(f"{k}: {v}")
 
     # Try to parse form and log the fields
     try:
