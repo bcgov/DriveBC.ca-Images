@@ -10,3 +10,4 @@ sqlalchemy
 pyodbc
 fastapi-limiter
 redis
+aiofiles
