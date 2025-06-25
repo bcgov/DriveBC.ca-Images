@@ -67,7 +67,7 @@ async def update_credentials_periodically():
         except Exception as e:
             logger.error(f"Error updating credentials: {e}")
         # await asyncio.sleep(180)
-        await asyncio.sleep(120)
+        await asyncio.sleep(30)
 
 # This just returns a coroutine, so it can be started from main
 def start_credential_refresh_task():
