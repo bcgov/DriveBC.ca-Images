@@ -79,34 +79,34 @@ async def upload_to_ftp(image_bytes: bytes, filename: str, camera_id: str) -> bo
     password = os.getenv("FTP_PASS", "test")
     target_dir = os.getenv("FTP_TARGET_DIR", "")
 
-    client = aioftp.Client()
-    client.passive = True
+    ftp_client = aioftp.Client()
+    ftp_client.passive = True
 
     try:
-        await client.connect(host, port)
-        await client.login(user, password)
+        await ftp_client.connect(host, port)
+        await ftp_client.login(user, password)
         logger.info(f"Connected to FTP server {host}:{port} as user {user}")
 
         # Ensure target directory exists
         try:
-            await client.change_directory(target_dir)
+            await ftp_client.change_directory(target_dir)
         except aioftp.StatusCodeError:
-            await client.make_directory(target_dir)
-            await client.change_directory(target_dir)
+            await ftp_client.make_directory(target_dir)
+            await ftp_client.change_directory(target_dir)
 
         # Build remote path (e.g. "343/343_20240625T194300Z.jpg")
         remote_path = f"{camera_id}/{filename}"
 
         # Ensure camera_id folder exists
         try:
-            await client.change_directory(camera_id)
+            await ftp_client.change_directory(camera_id)
         except aioftp.StatusCodeError:
-            await client.make_directory(camera_id)
-            await client.change_directory(camera_id)
+            await ftp_client.make_directory(camera_id)
+            await ftp_client.change_directory(camera_id)
 
         # Try to remove existing file (ignore if it doesn't exist)
         try:
-            await client.remove_file(filename)
+            await ftp_client.remove_file(filename)
             logger.info(f"Removed existing file on FTP: {remote_path}")
         except aioftp.StatusCodeError as e:
             if "550" in str(e):
@@ -117,10 +117,9 @@ async def upload_to_ftp(image_bytes: bytes, filename: str, camera_id: str) -> bo
         # Upload from in-memory bytes
         logger.info(f"Uploading in-memory bytes to {remote_path} on FTP server...")
         stream = io.BytesIO(image_bytes)
-        # await client.upload_stream(stream, filename)
-        # await client.upload_stream(stream, filename, write_into=True)
-        await client.upload_stream(stream, filename)
+        await ftp_client.upload_stream(stream, filename)
         logger.info(f"Uploaded {filename} to FTP server at {remote_path}")
+                
 
         return True
 
@@ -129,6 +128,6 @@ async def upload_to_ftp(image_bytes: bytes, filename: str, camera_id: str) -> bo
         return False
 
     finally:
-        await client.quit()
+        await ftp_client.quit()
 
 
