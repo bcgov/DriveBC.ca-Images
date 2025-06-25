@@ -7,7 +7,6 @@ import logging
 logger = logging.getLogger(__name__)
 
 async def upload_to_ftp(image_bytes: bytes, filename: str, camera_id: str) -> bool:
-    result = False
     host = os.getenv("FTP_HOST", "")
     port = int(os.getenv("FTP_PORT", 21))
     user = os.getenv("FTP_USER", "test")
@@ -16,6 +15,9 @@ async def upload_to_ftp(image_bytes: bytes, filename: str, camera_id: str) -> bo
 
     client = aioftp.Client()
     client.passive = True
+
+    tmp_dir = tempfile.gettempdir()
+    tmp_file_path = Path(tmp_dir) / filename
 
     try:
         await client.connect(host, port)
@@ -28,42 +30,24 @@ async def upload_to_ftp(image_bytes: bytes, filename: str, camera_id: str) -> bo
             await client.make_directory(target_dir)
             await client.change_directory(target_dir)
 
-        # # Save to a temp file
-        # with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
-        #     tmp_file.write(image_bytes)
-        #     tmp_file_path = Path(tmp_file.name)
-        #     remote_path = f"{camera_id}/{filename}"   
-        
-        # tmp_file_path.rename(filename)
-            
-        # Create temp file with the desired filename inside temp dir
-        tmp_dir = tempfile.gettempdir()
-        tmp_file_path = Path(tmp_dir) / filename
-
-        # Write image bytes directly to this path
         with tmp_file_path.open("wb") as tmp_file:
             tmp_file.write(image_bytes)
 
         remote_path = f"{camera_id}/{filename}"
 
-        
-        # Upload the renamed file to FTP
-        print(f"Uploading {tmp_file_path} to {remote_path} on FTP server...")
+        logger.info(f"Uploading {tmp_file_path} to {remote_path} on FTP server...")
         await client.upload(tmp_file_path, remote_path, write_into=True)
-        # logger.info(f"Uploaded {filename} to FTP server at {remote_path}")  
+        logger.info(f"Uploaded {filename} to FTP server at {remote_path}")
 
-        result = True      
-
-        # Clean up
-        Path(tmp_file_path).unlink()
+        return True
 
     except Exception as e:
         logger.error(f"Push to FTP failed from {camera_id}: {e}")
-        result = False
+        return False
+
     finally:
         await client.quit()
         tmp_file_path.unlink(missing_ok=True)
-    return result
 
     # async with aioftp.Client.context(host, port, user, password) as client:
     #     logger.info(f"Connected to FTP server {host}:{port} as user {user}")
