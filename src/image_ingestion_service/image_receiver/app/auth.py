@@ -59,8 +59,6 @@ async def update_credentials_periodically():
             logger.info("Refreshing credentials from DB...")
             print(f"CREDENTIAL_CACHE: {CREDENTIAL_CACHE}")
             creds = get_all_from_db()
-            if not creds:
-                print("No credentials found in the database.")
             if creds:
                 print(f"Fetched credentials from database: {creds}")
                 CREDENTIAL_CACHE.clear()
