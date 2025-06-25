@@ -130,7 +130,7 @@ async def upload_to_ftp(image_bytes: bytes, filename: str, camera_id: str) -> bo
 
          # Upload the file from disk
         logger.info(f"Uploading {tmp_file_path} to FTP as {remote_path}...")
-        await ftp_client.upload(tmp_file_path, remote_path, write_into=True)
+        await ftp_client.upload(tmp_file_path, filename, write_into=True)
         logger.info(f"Upload successful")
                 
 
