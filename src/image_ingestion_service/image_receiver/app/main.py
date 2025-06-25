@@ -62,6 +62,13 @@ async def get_cam_key_from_filename(request: Request):
 def cam_rate_limit_dep():
     return RateLimiter(times=1, seconds=20, identifier=get_cam_key_from_filename)
 
+@app.middleware("http")
+async def log_headers(request: Request, call_next):
+    print("Headers:", dict(request.headers))
+    response = await call_next(request)
+    return response
+
+
 # Health check endpoint
 @app.get("/api/healthz")
 async def health_check():
