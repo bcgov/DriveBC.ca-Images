@@ -18,6 +18,8 @@ from contextvars import ContextVar
 import os
 from fastapi_limiter.depends import RateLimiter
 from contextlib import asynccontextmanager
+from fastapi import Request, HTTPException, status
+from fastapi.security.utils import get_authorization_scheme_param
 
 logger = logging.getLogger(__name__)
 
@@ -62,14 +64,14 @@ async def get_cam_key_from_filename(request: Request):
 def cam_rate_limit_dep():
     return RateLimiter(times=1, seconds=20, identifier=get_cam_key_from_filename)
 
+# For debugging purposes
 @app.middleware("http")
 async def log_headers(request: Request, call_next):
-    if request.method == "POST":
-        print("POST Request Headers:", dict(request.headers))
-        # for key, value in request.headers.items():
-        #     print(f"{key}: {value}")
-    response = await call_next(request)
-    return response
+    # if request.method == "POST":
+    #     print("POST Request Headers:", dict(request.headers))
+    # response = await call_next(request)
+    # return response
+    pass
 
 
 # Health check endpoint
@@ -79,36 +81,6 @@ async def health_check():
 
 # Metrics endpoint
 Instrumentator().instrument(app).expose(app, endpoint="/api/metrics")
-
-# bruce test
-from fastapi import Request, HTTPException, status
-from fastapi.security.utils import get_authorization_scheme_param
-import base64
-
-async def custom_basic_auth(request: Request):
-    auth_header = request.headers.get("Authorization")
-    # if not auth_header:
-    #     raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing Authorization header")
-
-    scheme, credentials = get_authorization_scheme_param(auth_header)
-    print(f"DEBUG - Invalid Authorization header: {auth_header}")
-    print(f"DEBUG - scheme: {scheme}")
-    print(f"DEBUG - credentials: {credentials}")
-
-    if scheme.lower() != "basic" or not credentials:
-        print(f"DEBUG - Invalid Authorization header: {auth_header}")  # Remove in production!
-        # raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid Authorization header")
-
-    # try:
-    #     print(f"DEBUG - Decoding credentials: {credentials}")  # Remove in production!
-    #     decoded = base64.b64decode(credentials).decode("utf-8")
-    #     username, password = decoded.split(":", 1)
-    #     print(f"DEBUG - Username: {username}, Password: {password}")  # Remove in production!
-    # except Exception as e:
-    #     print(f"DEBUG - Error decoding credentials: {e}")
-    #     # raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid basic auth format")
-
-    # return "test", "test" #username, password
 
 
 @app.get("/api/images")
@@ -125,77 +97,24 @@ async def index():
         content={"message": "Image upload endpoint is reachable via GET root"}
     )
 
-# Image ingest endpoint
-# @app.get("/api/images")
 @app.post("/api/images")
-# @app.api_route("/api/images", methods=["GET", "POST"])
 async def receive_image(request: Request, 
-                        # image: UploadFile = File(..., alias="image"),
-                        # # bruce test
-
-
-
                         auth_data=Depends(authenticate_request),
-
-
-
-                        # auth_data: tuple = Depends(custom_basic_auth)
-
-
-                        # Use the rate limiter to limit requests per camera once Redis is set up
-                        # _=Depends(cam_rate_limit_dep()),
                         ):
-    # username, password = auth_data
-    # print(f"Received credentials - Username: {username}, Password: {password}")
-
     body = await request.body()
     if not body:
         raise HTTPException(status_code=400, detail="No image data received")
 
-    # Optional: extract filename from Content-Disposition header
+    # Extract filename from Content-Disposition header
     content_disposition = request.headers.get("content-disposition")
     filename = "123.jpg"
     if content_disposition and "filename=" in content_disposition:
         filename = content_disposition.split("filename=")[-1].strip('"')
-
-    # with open(filename, "wb") as f:
-    #     f.write(body)
-
-    print(f"Received {filename}, size: {len(body)} bytes")
-
-    path_hit = request.url.path # Gets the actual path, e.g., "/api/upload"
-    logger.info(f"Camera sent a GET request to {path_hit}")
-    # logger.info(f"Request Headers: {request.headers}")
-    # logger.info(f"Request Content-Type: {request.content_type}")
-
-
-    # # Log all headers
-    # print("==== HEADERS ====")
-    # for k, v in request.headers.items():
-    #     print(f"{k}: {v}")
-
-    # Try to parse form and log the fields
-    try:
-        form = await request.form()
-        for key, value in form.items():
-            print(f"Form field: {key}, type: {type(value)}")
-            if hasattr(value, "filename"):
-                print(f"-> File: {value.filename}, content_type: {value.content_type}")
-    except Exception as e:
-        print("Error parsing form:", e)
-    
-
-    # bruce test
+ 
     camera_id = auth_data["camera_id"]
-    # camera_id = "456"
-
-    # image_bytes = await image.read()
-
     image_bytes = await request.body()
     if not image_bytes:
         raise HTTPException(status_code=400, detail="No image data received")
-
-
 
     if not is_jpg_image(image_bytes):
         logger.warning(f"Invalid image format")
@@ -205,8 +124,7 @@ async def receive_image(request: Request,
         )
     
     timestamp = datetime.utcnow().strftime("%Y%m%dT%H%M%SZ")
-    unique_id = uuid.uuid4().hex[:8]
-    filename = f"{camera_id}_{timestamp}_{unique_id}.jpg"
+    filename = f"{camera_id}_{timestamp}.jpg"
 
     try:
         await send_to_rabbitmq(image_bytes, filename, camera_id=camera_id)
@@ -221,12 +139,6 @@ async def receive_image(request: Request,
         logger.info(f"Push to FTP server from {camera_id}")
     except Exception as e:
         logger.error(f"Push to FTP failed from {camera_id}: {e}")
-        # raise HTTPException(status_code=500, detail="Failed to push image to FTP")
-        # FTP push failed, but return 200 anyway
-        # return JSONResponse(
-        #         status_code=200,
-        #         content={"status": "warning", "detail": "Failed to push image to FTP"}
-        #     )   
         return Response(content="FTP push failed", media_type="text/plain", status_code=200)  
     
     record_rabbitmq_success()

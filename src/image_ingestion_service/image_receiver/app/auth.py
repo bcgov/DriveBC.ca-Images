@@ -57,23 +57,15 @@ async def update_credentials_periodically():
     while True:
         try:
             logger.info("Refreshing credentials from DB...")
-            print(f"CREDENTIAL_CACHE: {CREDENTIAL_CACHE}")
-            creds = get_all_from_db()
-            
-            # # Simulate failure
-            # raise RuntimeError("Simulated DB failure")
-            
+            creds = get_all_from_db()  
             if creds:
-                print(f"Fetched credentials from database: {creds}")
                 CREDENTIAL_CACHE.clear()
                 CREDENTIAL_CACHE.extend(creds)
                 logger.info(f"Updated {len(creds)} credentials.")
         except Exception as e:
             logger.error(f"Error updating credentials: {e}")
-        # await asyncio.sleep(180)
         await asyncio.sleep(30)
 
-# This just returns a coroutine, so it can be started from main
 def start_credential_refresh_task():
     return asyncio.create_task(update_credentials_periodically())
 
@@ -90,7 +82,6 @@ def validate_filename_and_get_region_ip(data: list, filename: str) -> tuple[str,
             logging.debug(f"Filename {clean_filename} does not match {filename}")
 
     # If no match found, log and raise error
-    
     logging.error(f"No matching record found for filename: {filename}")
     raise ValueError("Unauthorized or unknown image filename")
 
@@ -98,7 +89,7 @@ def get_client_ip(request: Request) -> str:
     """Extract the client's real IP address from request headers or connection."""
     x_forwarded_for = request.headers.get("X-Forwarded-For")
     if x_forwarded_for:
-        # In case of we use proxy, X-Forwarded-For may contain a list of IPs
+        # For proxy, X-Forwarded-For contains a list of IPs
         return x_forwarded_for.split(",")[0].strip()
     return request.client.host
 
@@ -113,7 +104,6 @@ def convert_camera_json_to_db_data(camera_ip_map: dict) -> list[dict]:
 
     db_data = []
     for idx, (cam_id, ip) in enumerate(camera_ip_map.items(), start=1):
-        # cam_number = ''.join(filter(str.isdigit, cam_id)) or str(idx)
         cam_number = cam_id
         db_data.append({
             'ID': idx,
@@ -129,31 +119,18 @@ def convert_camera_json_to_db_data(camera_ip_map: dict) -> list[dict]:
 
 async def authenticate_request(
     request: Request, 
-    credentials: HTTPBasicCredentials = Depends(security),
-    # credentials: tuple = Depends(custom_basic_auth)
-    
-):
-    
-    # username, password = credentials
-    # print(f"Received credentials - Username: {username}, Password: {password}")
-
-    
+    credentials: HTTPBasicCredentials = Depends(security),    
+): 
     if not CREDENTIAL_CACHE:
         logger.warning("Using fallback static credentials due to empty cache.")
         db_data = convert_camera_json_to_db_data(CAMERA_IP_MAPPING)
-        print(f"data from .env: {db_data}")
     else:
         db_data = CREDENTIAL_CACHE
-        print(f"data from database: {db_data}")
- 
-    # form: FormData = await request.form()
-    # image: UploadFile = form.get("image")
-
+        
     image = await request.body()
     if not image:
         raise HTTPException(status_code=400, detail="Image file is required")
 
-    # filename = image.filename
     content_disposition = request.headers.get("content-disposition")
     filename = "123.jpg"
     if content_disposition and "filename=" in content_disposition:
