@@ -30,8 +30,10 @@ async def upload_to_ftp(image_bytes: bytes, filename: str, camera_id: str) -> bo
             await client.make_directory(target_dir)
             await client.change_directory(target_dir)
 
+        print(f"Changed directory to {target_dir} on FTP server")
         with tmp_file_path.open("wb") as tmp_file:
             tmp_file.write(image_bytes)
+        print(f"Saved image to temporary file {tmp_file_path}")
 
         remote_path = f"{camera_id}/{filename}"
 
