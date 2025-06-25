@@ -69,7 +69,7 @@ async def upload_to_ftp(image_bytes: bytes, filename: str, camera_id: str) -> bo
 
     finally:
         await client.quit()
-        tmp_file_path.unlink(missing_ok=True)
+        await tmp_file_path.unlink(missing_ok=True)
 
     # async with aioftp.Client.context(host, port, user, password) as client:
     #     logger.info(f"Connected to FTP server {host}:{port} as user {user}")
