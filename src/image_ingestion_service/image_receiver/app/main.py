@@ -165,7 +165,7 @@ async def receive_image(request: Request,
 
     path_hit = request.url.path # Gets the actual path, e.g., "/api/upload"
     logger.info(f"Camera sent a GET request to {path_hit}")
-    logger.info(f"Request Headers: {request.headers}")
+    # logger.info(f"Request Headers: {request.headers}")
     # logger.info(f"Request Content-Type: {request.content_type}")
 
 
@@ -221,7 +221,12 @@ async def receive_image(request: Request,
         logger.info(f"Push to FTP server from {camera_id}")
     except Exception as e:
         logger.error(f"Push to FTP failed from {camera_id}: {e}")
-        raise HTTPException(status_code=500, detail="Failed to push image to FTP")     
+        # raise HTTPException(status_code=500, detail="Failed to push image to FTP")
+        # FTP push failed, but return 200 anyway
+        return JSONResponse(
+                status_code=200,
+                content={"status": "warning", "detail": "Failed to push image to FTP"}
+            )     
     
     record_rabbitmq_success()
 
