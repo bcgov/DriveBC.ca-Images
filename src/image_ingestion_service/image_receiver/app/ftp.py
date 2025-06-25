@@ -97,14 +97,7 @@ async def upload_to_ftp(image_bytes: bytes, filename: str, camera_id: str) -> bo
             print(f"Created and changed directory to {target_dir} on FTP server")
 
         # Build remote path (e.g. "343/343_20240625T194300Z.jpg")
-        remote_path = f"{camera_id}/{filename}"
-
-        # Ensure camera_id folder exists
-        try:
-            await ftp_client.change_directory(camera_id)
-        except aioftp.StatusCodeError:
-            await ftp_client.make_directory(camera_id)
-            await ftp_client.change_directory(camera_id)
+        remote_path = f"{target_dir}/{camera_id}/{filename}"
 
         # Try to remove existing file (ignore if it doesn't exist)
         try:
@@ -133,7 +126,7 @@ async def upload_to_ftp(image_bytes: bytes, filename: str, camera_id: str) -> bo
          # Upload the file from disk
         logger.info(f"Uploading {tmp_file_path} to FTP as {remote_path}...")
         try:
-            await ftp_client.upload(tmp_file_path, filename, write_into=True)
+            await ftp_client.upload(tmp_file_path, remote_path, write_into=True)
         except aioftp.StatusCodeError as e:
             print(f"Upload to remote server failed: {e}")
             raise
