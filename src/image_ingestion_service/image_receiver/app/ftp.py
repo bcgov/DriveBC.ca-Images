@@ -49,6 +49,15 @@ async def upload_to_ftp(image_bytes: bytes, filename: str, camera_id: str) -> bo
         remote_path = f"{camera_id}/{filename}"
 
         logger.info(f"Uploading {tmp_file_path} to {remote_path} on FTP server...")
+        try:
+            await client.remove_file(remote_path)
+            logger.info(f"Removed existing file on FTP: {remote_path}")
+        except aioftp.StatusCodeError as e:
+            # 550 means "file not found" or "can't delete" — safe to ignore if file isn't there
+            if "550" in str(e):
+                logger.info(f"No existing file to remove: {remote_path}")
+            else:
+                logger.warning(f"Unexpected FTP error when trying to remove file: {e}")
         await client.upload(tmp_file_path, remote_path, write_into=True)
         logger.info(f"Uploaded {filename} to FTP server at {remote_path}")
 
