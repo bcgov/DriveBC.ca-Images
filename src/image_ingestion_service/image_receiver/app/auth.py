@@ -78,7 +78,7 @@ def start_credential_refresh_task():
 def validate_filename_and_get_region_ip(data: list, filename: str) -> tuple[str, str]:
     for record in data:
         clean_filename = record.get("Cam_InternetFTP_Filename", "").strip()
-        print(f"Checking record: {record}")
+        # print(f"Checking record: {record}")
         if clean_filename == filename:
             region = record.get("Cam_LocationsRegion", "").strip()
             ip_address = record.get("Cam_MaintenancePublic_IP", "").strip()
