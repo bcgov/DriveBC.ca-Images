@@ -28,13 +28,24 @@ async def upload_to_ftp(image_bytes: bytes, filename: str, camera_id: str) -> bo
             await client.make_directory(target_dir)
             await client.change_directory(target_dir)
 
-        # Save to a temp file
-        with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
-            tmp_file.write(image_bytes)
-            tmp_file_path = Path(tmp_file.name)
-            remote_path = f"{camera_id}/{filename}"   
+        # # Save to a temp file
+        # with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
+        #     tmp_file.write(image_bytes)
+        #     tmp_file_path = Path(tmp_file.name)
+        #     remote_path = f"{camera_id}/{filename}"   
         
-        tmp_file_path.rename(filename)
+        # tmp_file_path.rename(filename)
+            
+        # Create temp file with the desired filename inside temp dir
+        tmp_dir = tempfile.gettempdir()
+        tmp_file_path = Path(tmp_dir) / filename
+
+        # Write image bytes directly to this path
+        with tmp_file_path.open("wb") as tmp_file:
+            tmp_file.write(image_bytes)
+
+        remote_path = f"{camera_id}/{filename}"
+
         
         # Upload the renamed file to FTP
         print(f"Uploading {tmp_file_path} to {remote_path} on FTP server...")
