@@ -58,7 +58,7 @@ async def update_credentials_periodically():
         try:
             # logger.info("Refreshing credentials from DB...")
             creds = get_all_from_db()  
-            print(f"Fetched {len(creds)} credentials from the database:")
+            # print(f"Fetched {len(creds)} credentials from the database:")
             # for row in creds:
             #     print(row)
             
