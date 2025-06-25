@@ -58,9 +58,14 @@ async def update_credentials_periodically():
         try:
             logger.info("Refreshing credentials from DB...")
             creds = get_all_from_db()  
+            print(f"Fetched {len(creds)} credentials from the database:")
+            # for row in creds:
+            #     print(row)
+            
             if creds:
                 CREDENTIAL_CACHE.clear()
                 CREDENTIAL_CACHE.extend(creds)
+                # print(f"Updated CREDENTIAL_CACHE with {CREDENTIAL_CACHE} credentials.")
                 logger.info(f"Updated {len(creds)} credentials.")
         except Exception as e:
             logger.error(f"Error updating credentials: {e}")
@@ -121,11 +126,14 @@ async def authenticate_request(
     request: Request, 
     credentials: HTTPBasicCredentials = Depends(security),    
 ): 
+    print(f"Updated CREDENTIAL_CACHE with {CREDENTIAL_CACHE} credentials.")
     if not CREDENTIAL_CACHE:
         logger.warning("Using fallback static credentials due to empty cache.")
         db_data = convert_camera_json_to_db_data(CAMERA_IP_MAPPING)
+        print(f"Using {len(db_data)} credentials from static mapping.")
     else:
         db_data = CREDENTIAL_CACHE
+        print(f"Using {len(db_data)} credentials from cache.")
         
     image = await request.body()
     if not image:

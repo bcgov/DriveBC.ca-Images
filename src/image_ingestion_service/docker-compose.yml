@@ -16,35 +16,40 @@ services:
       - FTP_USER_NAME=${FTP_USER}
       - FTP_USER_PASS=${FTP_PASS}
       - FTP_USER_HOME=/home/test
-    networks:
-      - internal-network
-      - external-sql-network
-  
-  ftp-server:
-    container_name: ftp-server-drivebc-image
-    image: stilliard/pure-ftpd
-    ports:
-      - "21:21"
-    environment:
-      - FTP_HOST=${FTP_HOST}
-      - FTP_PORT=${FTP_PORT}
-      - FTP_USER_NAME=${FTP_USER}
-      - FTP_USER_PASS=${FTP_PASS}
-      - FTP_USER_HOME=/home/test
-    volumes:
-      - ./ftp-data:/home/test
-    networks:
-      - internal-network
+      - DB_SERVER=${DB_SERVER}
+      - DB_NAME=${DB_NAME}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
 
-  redis:
-    image: "redis:6.2"
-    container_name: redis-drivebc-image
-    restart: unless-stopped
-    command: redis-server --appendonly yes
-    ports:
-      - "6379:6379"
-    networks:
-      - internal-network
+    # networks:
+    #   - internal-network
+    #   - external-sql-network
+  
+  # ftp-server:
+  #   container_name: ftp-server-drivebc-image
+  #   image: stilliard/pure-ftpd
+  #   ports:
+  #     - "21:21"
+  #   environment:
+  #     - FTP_HOST=${FTP_HOST}
+  #     - FTP_PORT=${FTP_PORT}
+  #     - FTP_USER_NAME=${FTP_USER}
+  #     - FTP_USER_PASS=${FTP_PASS}
+  #     - FTP_USER_HOME=/home/test
+  #   volumes:
+  #     - ./ftp-data:/home/test
+  #   networks:
+  #     - internal-network
+
+  # redis:
+  #   image: "redis:6.2"
+  #   container_name: redis-drivebc-image
+  #   restart: unless-stopped
+  #   command: redis-server --appendonly yes
+  #   ports:
+  #     - "6379:6379"
+  #   networks:
+  #     - internal-network
   
   # consumer:
   #   container_name: consumer-drivebc-image
@@ -60,13 +65,13 @@ services:
     environment:
       - RABBITMQ_URL=${RABBITMQ_URL}
 
-networks:
-  internal-network:
-      driver: bridge
+# networks:
+#   internal-network:
+#       driver: bridge
 
-  external-sql-network:
-    external: true
-    name: ${DB_NETWORK}
+#   external-sql-network:
+#     external: true
+#     name: ${DB_NETWORK}
 
   
 
