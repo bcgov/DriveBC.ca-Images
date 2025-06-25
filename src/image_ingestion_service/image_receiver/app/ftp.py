@@ -3,6 +3,7 @@ import aioftp
 import tempfile
 import os
 import logging
+import aiofiles
 
 logger = logging.getLogger(__name__)
 
@@ -36,8 +37,10 @@ async def upload_to_ftp(image_bytes: bytes, filename: str, camera_id: str) -> bo
         # print(f"Saved image to temporary file {tmp_file_path}")
             
         try:
-            with tmp_file_path.open("wb") as tmp_file:
-                tmp_file.write(image_bytes)
+            # with tmp_file_path.open("wb") as tmp_file:
+            #     tmp_file.write(image_bytes)
+            async with aiofiles.open(tmp_file_path, "wb") as tmp_file:
+                await tmp_file.write(image_bytes)
             print(f"Saved image to temporary file {tmp_file_path}")
         except Exception as e:
             print(f"Failed to write temp file: {e}")
