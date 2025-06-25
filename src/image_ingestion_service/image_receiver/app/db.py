@@ -25,7 +25,8 @@ engine = create_engine(connection_url)
 
 # Query function
 def get_all_from_db():
-    with engine.connect() as connection:
-        result = connection.execute(text("SELECT * FROM credentials"))
-        rows = [dict(row._mapping) for row in result]
-        return rows
+    # with engine.connect() as connection:
+    #     result = connection.execute(text("SELECT * FROM credentials"))
+    #     rows = [dict(row._mapping) for row in result]
+    #     return rows
+    return None
