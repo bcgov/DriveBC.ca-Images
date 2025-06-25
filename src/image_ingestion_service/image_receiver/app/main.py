@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Depends, Request
+from fastapi import FastAPI, HTTPException, Depends, Request, Response
 from fastapi.responses import JSONResponse
 import logging
 from fastapi import File, UploadFile
@@ -223,10 +223,11 @@ async def receive_image(request: Request,
         logger.error(f"Push to FTP failed from {camera_id}: {e}")
         # raise HTTPException(status_code=500, detail="Failed to push image to FTP")
         # FTP push failed, but return 200 anyway
-        return JSONResponse(
-                status_code=200,
-                content={"status": "warning", "detail": "Failed to push image to FTP"}
-            )     
+        # return JSONResponse(
+        #         status_code=200,
+        #         content={"status": "warning", "detail": "Failed to push image to FTP"}
+        #     )   
+        return Response(content="FTP push failed", media_type="text/plain", status_code=200)  
     
     record_rabbitmq_success()
 
