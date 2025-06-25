@@ -135,8 +135,11 @@ async def receive_image(request: Request,
         raise HTTPException(status_code=500, detail="Failed to push image to RabbitMQ")
 
     try:
-        await upload_to_ftp(image_bytes, filename, camera_id=camera_id)
-        logger.info(f"Push to FTP server from {camera_id}")
+        result = await upload_to_ftp(image_bytes, filename, camera_id=camera_id)
+        if not result:
+            logger.error(f"FTP upload failed for {camera_id}")
+            return Response(content="FTP upload failed", media_type="text/plain", status_code=200)
+        logger.info(f"Pushed to FTP server from {camera_id}")
     except Exception as e:
         logger.error(f"Push to FTP failed from {camera_id}: {e}")
         return Response(content="FTP push failed", media_type="text/plain", status_code=200)  

@@ -6,7 +6,8 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-async def upload_to_ftp(image_bytes: bytes, filename: str, camera_id: str):
+async def upload_to_ftp(image_bytes: bytes, filename: str, camera_id: str) -> bool:
+    result = False
     host = os.getenv("FTP_HOST", "")
     port = int(os.getenv("FTP_PORT", 21))
     user = os.getenv("FTP_USER", "test")
@@ -36,17 +37,22 @@ async def upload_to_ftp(image_bytes: bytes, filename: str, camera_id: str):
         tmp_file_path.rename(filename)
         
         # Upload the renamed file to FTP
+        print(f"Uploading {tmp_file_path} to {remote_path} on FTP server...")
         await client.upload(tmp_file_path, remote_path, write_into=True)
-        logger.info(f"Uploaded {filename} to FTP server at {remote_path}")        
+        # logger.info(f"Uploaded {filename} to FTP server at {remote_path}")  
+
+        result = True      
 
         # Clean up
         Path(tmp_file_path).unlink()
-        
+
     except Exception as e:
         logger.error(f"Push to FTP failed from {camera_id}: {e}")
+        result = False
     finally:
         await client.quit()
         tmp_file_path.unlink(missing_ok=True)
+    return result
 
     # async with aioftp.Client.context(host, port, user, password) as client:
     #     logger.info(f"Connected to FTP server {host}:{port} as user {user}")
