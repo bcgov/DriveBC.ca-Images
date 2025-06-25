@@ -62,9 +62,18 @@ async def get_cam_key_from_filename(request: Request):
 def cam_rate_limit_dep():
     return RateLimiter(times=1, seconds=20, identifier=get_cam_key_from_filename)
 
+# @app.middleware("http")
+# async def log_headers(request: Request, call_next):
+#     print("Headers:", dict(request.headers))
+#     response = await call_next(request)
+#     return response
+
 @app.middleware("http")
 async def log_headers(request: Request, call_next):
-    print("Headers:", dict(request.headers))
+    if request.method == "POST":
+        print(f"POST Request to {request.url.path} with headers:")
+        for key, value in request.headers.items():
+            print(f"{key}: {value}")
     response = await call_next(request)
     return response
 
