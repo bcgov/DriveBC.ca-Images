@@ -124,7 +124,7 @@ async def upload_to_ftp(image_bytes: bytes, filename: str, camera_id: str) -> bo
         tmp_file_path = Path(tmp_dir) / filename
         async with aiofiles.open(tmp_file_path, "wb") as tmp_file:
             await tmp_file.write(image_bytes)
-        logger.info(f"Saved image to temporary file {tmp_file_path}")
+        print(f"Saved image to {tmp_file_path}, size: {len(image_bytes)} bytes")
 
         # # Upload from in-memory bytes
         # logger.info(f"Uploading in-memory bytes to {remote_path} on FTP server...")
