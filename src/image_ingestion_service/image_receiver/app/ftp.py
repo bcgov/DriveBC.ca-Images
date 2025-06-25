@@ -90,9 +90,11 @@ async def upload_to_ftp(image_bytes: bytes, filename: str, camera_id: str) -> bo
         # Ensure target directory exists
         try:
             await ftp_client.change_directory(target_dir)
+            print(f"Changed directory to {target_dir} on FTP server")
         except aioftp.StatusCodeError:
             await ftp_client.make_directory(target_dir)
             await ftp_client.change_directory(target_dir)
+            print(f"Created and changed directory to {target_dir} on FTP server")
 
         # Build remote path (e.g. "343/343_20240625T194300Z.jpg")
         remote_path = f"{camera_id}/{filename}"
