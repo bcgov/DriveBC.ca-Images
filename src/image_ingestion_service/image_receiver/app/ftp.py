@@ -117,7 +117,8 @@ async def upload_to_ftp(image_bytes: bytes, filename: str, camera_id: str) -> bo
         # Upload from in-memory bytes
         logger.info(f"Uploading in-memory bytes to {remote_path} on FTP server...")
         stream = io.BytesIO(image_bytes)
-        await client.upload_stream(stream, filename)
+        # await client.upload_stream(stream, filename)
+        await client.upload_stream(stream, filename, write_into=True)
         logger.info(f"Uploaded {filename} to FTP server at {remote_path}")
 
         return True
