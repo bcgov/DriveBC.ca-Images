@@ -61,22 +61,22 @@ async def log_headers(request: Request, call_next):
         auth_header = request.headers.get("authorization")
         auth_header = request.headers.get("authorization")
 
-    if auth_header:
-        encoded = auth_header.split(" ")[1]
-        # Decode here safely...
-    else:
-        # Log, raise, or skip
-        print("No Authorization header found")
+    # if auth_header:
+    #     encoded = auth_header.split(" ")[1]
+    #     # Decode here safely...
+    # else:
+    #     # Log, raise, or skip
+    #     print("No Authorization header found")
 
-        # Decode from Base64
-        decoded_bytes = base64.b64decode(encoded)
-        decoded_str = decoded_bytes.decode('utf-8')
+    #     # Decode from Base64
+    #     decoded_bytes = base64.b64decode(encoded)
+    #     decoded_str = decoded_bytes.decode('utf-8')
 
-        # Split into username and password
-        username, password = decoded_str.split(':', 1)
+    #     # Split into username and password
+    #     username, password = decoded_str.split(':', 1)
 
-        print(f"Username: {username}")
-        print(f"Password: {password}")
+    #     print(f"Username: {username}")
+    #     print(f"Password: {password}")
     response = await call_next(request)
     return response
 
