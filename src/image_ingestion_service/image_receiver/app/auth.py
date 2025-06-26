@@ -56,7 +56,7 @@ def record_rabbitmq_failure():
 async def update_credentials_periodically():
     while True:
         try:
-            logger.info("Refreshing credentials from DB...")
+            # logger.info("Refreshing credentials from DB...")
             creds = get_all_from_db()
             
             if creds:
