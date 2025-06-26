@@ -26,14 +26,14 @@ def is_jpg_image(image_bytes: bytes) -> bool:
     except Exception:
         return False
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    # Startup
-    task = start_credential_refresh_task()
+# @asynccontextmanager
+# async def lifespan(app: FastAPI):
+#     # Startup
+#     task = start_credential_refresh_task()
 
-    yield
-    # Shutdown
-    task.cancel()
+#     yield
+#     # Shutdown
+#     task.cancel()
 
 app = FastAPI(
     title="MOTT Image Ingestion Service",
@@ -42,7 +42,7 @@ app = FastAPI(
     docs_url="/docs", 
     redoc_url="/redoc",
     openapi_url="/openapi.json",
-    lifespan=lifespan,
+    # lifespan=lifespan,
 )
 
 filename_context: ContextVar[str] = ContextVar("filename_context", default="unknown")
