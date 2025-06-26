@@ -56,7 +56,7 @@ def record_rabbitmq_failure():
 async def update_credentials_periodically():
     while True:
         try:
-            logger.info("Refreshing credentials from DB...")
+            # logger.info("Refreshing credentials from DB...")
             creds = get_all_from_db()  
             # print(f"Fetched {len(creds)} credentials from the database:")
             # for row in creds:
@@ -66,7 +66,7 @@ async def update_credentials_periodically():
                 CREDENTIAL_CACHE.clear()
                 CREDENTIAL_CACHE.extend(creds)
                 # print(f"Updated CREDENTIAL_CACHE with {CREDENTIAL_CACHE} credentials.")
-                logger.info(f"Updated {len(creds)} credentials.")
+                # logger.info(f"Updated {len(creds)} credentials.")
         except Exception as e:
             logger.error(f"Error updating credentials: {e}")
         await asyncio.sleep(30)
