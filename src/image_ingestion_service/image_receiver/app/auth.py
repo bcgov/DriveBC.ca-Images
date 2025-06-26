@@ -1,4 +1,5 @@
 import asyncio
+import base64
 from typing import Optional
 from fastapi import Request, Header, HTTPException, Response, status, Depends
 import logging
@@ -112,6 +113,11 @@ def verify_credentials(credentials: HTTPBasicCredentials, expected_creds: dict) 
         secrets.compare_digest(credentials.password, expected_creds["password"])
     )
 
+def verify_credentials_test(username: str, password: str) -> bool:
+    return (
+        username == "camvi" and password == "Fpf6juQvmEkR7QzpJ7Xw" 
+    )
+
 def convert_camera_json_to_db_data(camera_ip_map: dict) -> list[dict]:
     location_map = json.loads(os.getenv("CAMERA_LOCATION_MAPPING", "{}"))
 
@@ -131,10 +137,29 @@ def convert_camera_json_to_db_data(camera_ip_map: dict) -> list[dict]:
 
 async def authenticate_request(
     request: Request,
-    credentials: Optional[HTTPBasicCredentials] = Depends(security, use_cache=False),
+    # credentials: Optional[HTTPBasicCredentials] = Depends(security, use_cache=False),
 ):
+    
+    auth_header = request.headers.get("authorization")
+
+    if not auth_header or not auth_header.lower().startswith("basic "):
+        # No auth provided
+        # Instead of 401, return 200 OK as you wanted
+        return Response(status_code=200, content="OK")
+
+    try:
+        encoded = auth_header.split(" ")[1]
+        decoded = base64.b64decode(encoded).decode("utf-8")
+        username, password = decoded.split(":", 1)
+        print(f"Username: {username}, Password: {password}")
+    except Exception:
+        # Bad header format
+        return Response(status_code=200, content="OK")    
+        
+    
+
     # --- 1. Handle the No-Authentication Case ---
-    if not credentials:
+    if not auth_header:
         logger.warning("Request received without auth header. Discarding image and returning 200 OK to prevent client errors.")
         record_auth_failure()
         return Response(status_code=status.HTTP_200_OK, content="OK")
@@ -178,7 +203,7 @@ async def authenticate_request(
         return Response(status_code=status.HTTP_200_OK, content="OK")
         
     # Validate the provided credentials
-    if not verify_credentials(credentials, expected_creds):
+    if not verify_credentials_test(username, password):
         logger.warning(f"Invalid credentials for camera {camera_id} from IP {client_ip}. Discarding image and returning 200 OK.")
         record_auth_failure()
         return Response(status_code=status.HTTP_200_OK, content="OK")
