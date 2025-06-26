@@ -59,7 +59,14 @@ async def log_headers(request: Request, call_next):
         print("POST Request Headers:", dict(request.headers))
         # Remove 'Basic ' prefix
         auth_header = request.headers.get("authorization")
-        encoded = auth_header.split(' ')[1]
+        auth_header = request.headers.get("authorization")
+
+    if auth_header:
+        encoded = auth_header.split(" ")[1]
+        # Decode here safely...
+    else:
+        # Log, raise, or skip
+        print("No Authorization header found")
 
         # Decode from Base64
         decoded_bytes = base64.b64decode(encoded)
