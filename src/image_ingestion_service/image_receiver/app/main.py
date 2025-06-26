@@ -52,6 +52,13 @@ async def get_cam_key_from_filename(request: Request):
     cam_id = os.path.splitext(filename)[0]
     return cam_id
 
+@app.middleware("http")
+async def log_headers(request: Request, call_next):
+    if request.method == "POST":
+        print("POST Request Headers:", dict(request.headers))
+    response = await call_next(request)
+    return response
+
 # Health check endpoint
 @app.get("/api/healthz")
 async def health_check():
