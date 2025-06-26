@@ -57,16 +57,12 @@ async def update_credentials_periodically():
     while True:
         try:
             logger.info("Refreshing credentials from DB...")
-            creds = get_all_from_db()  
-            # print(f"Refreshed {len(creds)} credentials from the database:")
-            # for row in creds:
-            #     print(row)
+            creds = get_all_from_db()
             
             if creds:
                 CREDENTIAL_CACHE.clear()
                 CREDENTIAL_CACHE.extend(creds)
-                # print(f"Updated CREDENTIAL_CACHE with {CREDENTIAL_CACHE} credentials.")
-                logger.info(f"Updated {len(creds)} credentials.")
+                # logger.info(f"Updated {len(creds)} credentials.")
         except Exception as e:
             logger.error(f"Error updating credentials: {e}")
         await asyncio.sleep(30)
@@ -78,9 +74,6 @@ def get_credentials():
     try:
         # logger.info("Initializing credentials from DB...")
         creds = get_all_from_db()  
-        # print(f"Fetched {len(creds)} credentials from the database:")
-            # for row in creds:
-            #     print(row)
             
         if creds:
             CREDENTIAL_CACHE.clear()
@@ -93,7 +86,6 @@ def get_credentials():
 def validate_filename_and_get_region_ip(data: list, filename: str) -> tuple[str, str]:
     for record in data:
         clean_filename = record.get("Cam_InternetFTP_Filename", "").strip()
-        # print(f"Checking record: {record}")
         if clean_filename == filename:
             region = record.get("Cam_LocationsRegion", "").strip()
             ip_address = record.get("Cam_MaintenancePublic_IP", "").strip()
@@ -142,14 +134,11 @@ async def authenticate_request(
     credentials: HTTPBasicCredentials = Depends(security),    
 ): 
     get_credentials()  # Ensure credentials are updated before processing the request
-    # print(f"Updated CREDENTIAL_CACHE with {CREDENTIAL_CACHE} credentials.")
     if not CREDENTIAL_CACHE:
         logger.warning("Using fallback static credentials due to empty cache.")
         db_data = convert_camera_json_to_db_data(CAMERA_IP_MAPPING)
-        print(f"Using {len(db_data)} credentials from static mapping.")
     else:
         db_data = CREDENTIAL_CACHE
-        # print(f"Using {len(db_data)} credentials from cache.")
         
     image = await request.body()
     if not image:
