@@ -85,38 +85,38 @@ async def upload_to_ftp(image_bytes: bytes, filename: str, camera_id: str) -> bo
     try:
         await ftp_client.connect(host, port)
         await ftp_client.login(user, password)
-        logger.info(f"Connected to FTP server {host}:{port} as user {user}")
+        # logger.info(f"Connected to FTP server {host}:{port} as user {user}")
 
         # Ensure target directory exists
         try:
             await ftp_client.change_directory(target_dir)
-            print(f"Changed directory to {target_dir} on FTP server")
+            # print(f"Changed directory to {target_dir} on FTP server")
         except aioftp.StatusCodeError:
             await ftp_client.make_directory(target_dir)
             await ftp_client.change_directory(target_dir)
-            print(f"Created and changed directory to {target_dir} on FTP server")
+            # print(f"Created and changed directory to {target_dir} on FTP server")
         # Ensure camera id directory exists
         try:
             await ftp_client.change_directory(camera_id)
-            print(f"Changed directory to {camera_id} on FTP server")
+            # print(f"Changed directory to {camera_id} on FTP server")
         except aioftp.StatusCodeError:
             await ftp_client.make_directory(camera_id)
             await ftp_client.change_directory(camera_id)
-            print(f"Created and changed directory to {camera_id} on FTP server")
+            # print(f"Created and changed directory to {camera_id} on FTP server")
 
 
         # Build remote path (e.g. "343/343_20240625T194300Z.jpg")
         remote_path = f"{target_dir}/{camera_id}/{filename}"
 
-        # Try to remove existing file (ignore if it doesn't exist)
-        try:
-            await ftp_client.remove_file(filename)
-            logger.info(f"Removed existing file on FTP: {remote_path}")
-        except aioftp.StatusCodeError as e:
-            if "550" in str(e):
-                logger.info(f"No existing file to remove: {remote_path}")
-            else:
-                logger.warning(f"Unexpected FTP error when trying to remove file: {e}")
+        # # Try to remove existing file (ignore if it doesn't exist)
+        # try:
+        #     await ftp_client.remove_file(filename)
+        #     logger.info(f"Removed existing file on FTP: {remote_path}")
+        # except aioftp.StatusCodeError as e:
+        #     if "550" in str(e):
+        #         logger.info(f"No existing file to remove: {remote_path}")
+        #     else:
+        #         logger.warning(f"Unexpected FTP error when trying to remove file: {e}")
 
         # Save bytes to temp file asynchronously
         # Create temp file path in system temp folder
@@ -124,7 +124,7 @@ async def upload_to_ftp(image_bytes: bytes, filename: str, camera_id: str) -> bo
         tmp_file_path = Path(tmp_dir) / filename
         async with aiofiles.open(tmp_file_path, "wb") as tmp_file:
             await tmp_file.write(image_bytes)
-        print(f"Saved image to {tmp_file_path}, size: {len(image_bytes)} bytes")
+        # print(f"Saved image to {tmp_file_path}, size: {len(image_bytes)} bytes")
 
         # # Upload from in-memory bytes
         # logger.info(f"Uploading in-memory bytes to {remote_path} on FTP server...")
@@ -133,7 +133,7 @@ async def upload_to_ftp(image_bytes: bytes, filename: str, camera_id: str) -> bo
         # logger.info(f"Uploaded {filename} to FTP server at {remote_path}")
 
          # Upload the file from disk
-        logger.info(f"Uploading {tmp_file_path} to FTP as {filename}...")
+        # logger.info(f"Uploading {tmp_file_path} to FTP as {filename}...")
         try:
             await ftp_client.upload(tmp_file_path, filename, write_into=True)
         except aioftp.StatusCodeError as e:

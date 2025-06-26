@@ -76,7 +76,7 @@ def start_credential_refresh_task():
 
 def get_credentials():
     try:
-        logger.info("Initializing credentials from DB...")
+        # logger.info("Initializing credentials from DB...")
         creds = get_all_from_db()  
             # print(f"Fetched {len(creds)} credentials from the database:")
             # for row in creds:
@@ -86,7 +86,7 @@ def get_credentials():
             CREDENTIAL_CACHE.clear()
             CREDENTIAL_CACHE.extend(creds)
             # print(f"Updated CREDENTIAL_CACHE with {CREDENTIAL_CACHE} credentials.")
-            logger.info(f"Initialized {len(creds)} credentials.")
+            # logger.info(f"Initialized {len(creds)} credentials.")
     except Exception as e:
             logger.error(f"Error initilizing credentials: {e}")
 
