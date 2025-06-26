@@ -141,12 +141,12 @@ async def authenticate_request(
 ):
     
     auth_header = request.headers.get("authorization")
-
+    # --- 1. Handle the No-Authentication Case ---
     if not auth_header or not auth_header.lower().startswith("basic "):
         # No auth provided
         # Instead of 401, return 200 OK as you wanted
-        # return Response(status_code=200, content="OK")
-        raise HTTPException(status_code=401, detail="No auth header provided", headers={"WWW-Authenticate": "Basic realm='AxisCamera'"})
+        return Response(status_code=200, content="OK")
+        # raise HTTPException(status_code=401, detail="No auth header provided", headers={"WWW-Authenticate": "Basic realm='AxisCamera'"})
 
     try:
         encoded = auth_header.split(" ")[1]
@@ -158,20 +158,6 @@ async def authenticate_request(
         # return Response(status_code=200, content="OK")  
         raise HTTPException(status_code=401, detail="Invalid auth header", headers={"WWW-Authenticate": "Basic realm='AxisCamera'"})
   
-        
-    # --- 1. Handle the No-Authentication Case ---
-    if not auth_header:
-        logger.warning("Request received without auth header. Discarding image and returning 200 OK to prevent client errors.")
-        record_auth_failure()
-        # return Response(status_code=status.HTTP_200_OK, content="OK")
-        # return Response(
-        #     status_code=status.HTTP_401_UNAUTHORIZED,
-        #     content="Invalid credentials",
-        #     headers={"WWW-Authenticate": "Basic realm='AxisCamera'"},
-        #     media_type="text/plain"
-        # )
-        raise HTTPException(status_code=401, detail="No auth header provided", headers={"WWW-Authenticate": "Basic realm='AxisCamera'"})
-
 
     # --- 2. Perform Validation, but return 200 on failure ---
     get_credentials()
