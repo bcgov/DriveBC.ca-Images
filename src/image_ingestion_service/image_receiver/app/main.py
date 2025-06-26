@@ -119,7 +119,7 @@ async def receive_image(request: Request,
             return Response(content="FTP upload failed", media_type="text/plain", status_code=200)
         logger.info(f"Pushed to FTP server from {camera_id}")
     except Exception as e:
-        logger.error(f"Push to FTP failed from {camera_id}: {e}")
+        # logger.error(f"Push to FTP failed from {camera_id}: {e}")
         return Response(content="FTP push failed", media_type="text/plain", status_code=200)  
     
     record_rabbitmq_success()

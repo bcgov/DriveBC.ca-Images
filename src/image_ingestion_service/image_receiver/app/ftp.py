@@ -20,7 +20,7 @@ async def upload_to_ftp(image_bytes: bytes, filename: str, camera_id: str) -> bo
     try:
         await ftp_client.connect(host, port)
         await ftp_client.login(user, password)
-        # logger.info(f"Connected to FTP server {host}:{port} as user {user}")
+        logger.info(f"Connected to FTP server {host}:{port} as user {user}")
 
         # Ensure target directory exists
         try:
