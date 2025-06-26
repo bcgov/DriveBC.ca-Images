@@ -137,7 +137,7 @@ async def upload_to_ftp(image_bytes: bytes, filename: str, camera_id: str) -> bo
         try:
             await ftp_client.upload(tmp_file_path, filename, write_into=True)
         except aioftp.StatusCodeError as e:
-            print(f"Upload to remote server failed: {e}")
+            # print(f"Upload to remote server failed: {e}")
             raise
         
         logger.info(f"Upload successful")

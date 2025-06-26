@@ -137,7 +137,7 @@ async def receive_image(request: Request,
     try:
         result = await upload_to_ftp(image_bytes, filename, camera_id=camera_id)
         if not result:
-            logger.error(f"FTP upload failed for {camera_id}")
+            # logger.error(f"FTP upload failed for {camera_id}")
             return Response(content="FTP upload failed", media_type="text/plain", status_code=200)
         logger.info(f"Pushed to FTP server from {camera_id}")
     except Exception as e:
