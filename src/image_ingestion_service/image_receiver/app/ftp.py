@@ -45,7 +45,7 @@ async def upload_to_ftp(image_bytes: bytes, filename: str, camera_id: str) -> bo
             await ftp_client.upload(tmp_file_path, filename, write_into=True)
         except aioftp.StatusCodeError as e:
             raise
-        
+        await Path(tmp_file_path).unlink()
         return True
 
     except Exception as e:
@@ -54,5 +54,4 @@ async def upload_to_ftp(image_bytes: bytes, filename: str, camera_id: str) -> bo
 
     finally:
         # Clean up
-        await Path(tmp_file_path).unlink()
         await ftp_client.quit()
