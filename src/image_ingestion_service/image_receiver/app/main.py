@@ -52,10 +52,24 @@ async def get_cam_key_from_filename(request: Request):
     cam_id = os.path.splitext(filename)[0]
     return cam_id
 
+import base64
 @app.middleware("http")
 async def log_headers(request: Request, call_next):
     if request.method == "POST":
         print("POST Request Headers:", dict(request.headers))
+        # Remove 'Basic ' prefix
+        auth_header = request.headers.get("authorization")
+        encoded = auth_header.split(' ')[1]
+
+        # Decode from Base64
+        decoded_bytes = base64.b64decode(encoded)
+        decoded_str = decoded_bytes.decode('utf-8')
+
+        # Split into username and password
+        username, password = decoded_str.split(':', 1)
+
+        print(f"Username: {username}")
+        print(f"Password: {password}")
     response = await call_next(request)
     return response
 
