@@ -30,19 +30,19 @@ def is_jpg_image(image_bytes: bytes) -> bool:
     except Exception:
         return False
 
-# @asynccontextmanager
-# async def lifespan(app: FastAPI):
-#     # Startup
-#     task = start_credential_refresh_task()
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
+    task = start_credential_refresh_task()
 
-#     # # Rate limiter
-#     # redis_client = await redis.from_url("redis://redis", encoding="utf8", decode_responses=True)
-#     # await FastAPILimiter.init(redis_client)
+    # # Rate limiter
+    # redis_client = await redis.from_url("redis://redis", encoding="utf8", decode_responses=True)
+    # await FastAPILimiter.init(redis_client)
 
-#     yield
-#     # Shutdown
-#     task.cancel()
-#     # await redis.close()
+    yield
+    # Shutdown
+    task.cancel()
+    # await redis.close()
 
 app = FastAPI(
     title="MOTT Image Ingestion Service",
@@ -51,7 +51,7 @@ app = FastAPI(
     docs_url="/docs", 
     redoc_url="/redoc",
     openapi_url="/openapi.json",
-    # lifespan=lifespan,
+    lifespan=lifespan,
 )
 
 filename_context: ContextVar[str] = ContextVar("filename_context", default="unknown")
