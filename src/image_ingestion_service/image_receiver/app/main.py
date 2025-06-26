@@ -1,24 +1,20 @@
 from fastapi import FastAPI, HTTPException, Depends, Request, Response
 from fastapi.responses import JSONResponse
 import logging
-from fastapi import File, UploadFile
 from PIL import Image
 from io import BytesIO
 from fastapi import Header
 from datetime import datetime
 from .rabbitmq import send_to_rabbitmq
 from .ftp import upload_to_ftp
-import uuid
 from prometheus_fastapi_instrumentator import Instrumentator
 from .auth import authenticate_request, LOCATION_USER_PASS_MAPPING, start_credential_refresh_task, record_rabbitmq_failure, record_rabbitmq_success, get_credentials
 from contextlib import asynccontextmanager
-from fastapi_limiter import FastAPILimiter
 import redis.asyncio as redis
 from contextvars import ContextVar
 import os
-from fastapi_limiter.depends import RateLimiter
 from contextlib import asynccontextmanager
-from fastapi import Request, HTTPException, status
+from fastapi import Request, HTTPException
 from fastapi.security.utils import get_authorization_scheme_param
 
 logger = logging.getLogger(__name__)
@@ -35,14 +31,9 @@ async def lifespan(app: FastAPI):
     # Startup
     task = start_credential_refresh_task()
 
-    # # Rate limiter
-    # redis_client = await redis.from_url("redis://redis", encoding="utf8", decode_responses=True)
-    # await FastAPILimiter.init(redis_client)
-
     yield
     # Shutdown
     task.cancel()
-    # await redis.close()
 
 app = FastAPI(
     title="MOTT Image Ingestion Service",
@@ -60,18 +51,6 @@ async def get_cam_key_from_filename(request: Request):
     filename = filename_context.get()
     cam_id = os.path.splitext(filename)[0]
     return cam_id
-
-def cam_rate_limit_dep():
-    return RateLimiter(times=1, seconds=20, identifier=get_cam_key_from_filename)
-
-# For debugging purposes
-@app.middleware("http")
-async def log_headers(request: Request, call_next):
-    if request.method == "POST":
-        print("POST Request Headers:", dict(request.headers))
-    response = await call_next(request)
-    return response
-
 
 # Health check endpoint
 @app.get("/api/healthz")
