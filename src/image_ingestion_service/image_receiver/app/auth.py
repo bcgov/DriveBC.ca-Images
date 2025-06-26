@@ -162,7 +162,13 @@ async def authenticate_request(
     if not auth_header:
         logger.warning("Request received without auth header. Discarding image and returning 200 OK to prevent client errors.")
         record_auth_failure()
-        return Response(status_code=status.HTTP_200_OK, content="OK")
+        # return Response(status_code=status.HTTP_200_OK, content="OK")
+        return Response(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            content="Invalid credentials",
+            headers={"WWW-Authenticate": "Basic realm='AxisCamera'"},
+            media_type="text/plain"
+        )
 
     # --- 2. Perform Validation, but return 200 on failure ---
     get_credentials()
@@ -171,7 +177,8 @@ async def authenticate_request(
     content_disposition = request.headers.get("content-disposition")
     if not (content_disposition and "filename=" in content_disposition):
         logger.error("Request missing 'content-disposition' header with filename. Discarding.")
-        return Response(status_code=status.HTTP_200_OK, content="OK")
+        # return Response(status_code=status.HTTP_200_OK, content="OK")
+        raise HTTPException(status_code=400, detail="Image file is required")
         
     filename = content_disposition.split("filename=")[-1].strip('"')
     camera_id = os.path.splitext(filename)[0]
@@ -182,7 +189,8 @@ async def authenticate_request(
         logger.error(f"Validation Error for {filename}: {e}. Discarding image and returning 200 OK.")
         record_ip_failure()
         record_auth_failure()
-        return Response(status_code=status.HTTP_200_OK, content="OK")
+        # return Response(status_code=status.HTTP_200_OK, content="OK")
+        raise HTTPException(status_code=400, detail="Image file is required")
 
     client_ip = get_client_ip(request)
     expected_creds = LOCATION_USER_PASS_MAPPING.get(region)
@@ -194,19 +202,22 @@ async def authenticate_request(
         logger.warning(f"IP mismatch for {camera_id}: expected {ip_address}, got {client_ip}. Discarding image and returning 200 OK.")
         record_ip_failure()
         record_auth_failure()
-        return Response(status_code=status.HTTP_200_OK, content="OK")
+        # return Response(status_code=status.HTTP_200_OK, content="OK")
+        raise HTTPException(status_code=401, detail="IP mismatch")
 
     # Validate that credentials exist for the location
     if not expected_creds:
         logger.warning(f"No credentials configured for location '{region}' (camera {camera_id}). Discarding image and returning 200 OK.")
         record_auth_failure()
-        return Response(status_code=status.HTTP_200_OK, content="OK")
+        # return Response(status_code=status.HTTP_200_OK, content="OK")
+        raise HTTPException(status_code=401, detail="Credential mismatch")
         
     # Validate the provided credentials
     if not verify_credentials_test(username, password):
         logger.warning(f"Invalid credentials for camera {camera_id} from IP {client_ip}. Discarding image and returning 200 OK.")
         record_auth_failure()
-        return Response(status_code=status.HTTP_200_OK, content="OK")
+        # return Response(status_code=status.HTTP_200_OK, content="OK")
+        raise HTTPException(status_code=401, detail="Invalid credentials")
 
     # --- 3. If all checks pass, it's a valid request ---
     logger.info(f"Successfully authenticated camera {camera_id}.")
