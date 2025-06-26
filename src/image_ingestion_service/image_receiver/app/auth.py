@@ -155,7 +155,12 @@ async def authenticate_request(
         if not region or not ip_address:
             record_ip_failure()
             record_auth_failure()
-            raise HTTPException(status_code=403, detail="Invalid camera ID or location mapping")
+            # raise HTTPException(status_code=403, detail="Invalid camera ID or location mapping")
+            raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication required",
+            headers={"WWW-Authenticate": "Basic realm='AxisCamera'"},
+        )
     except ValueError as e:
         record_ip_failure()
         record_auth_failure()
