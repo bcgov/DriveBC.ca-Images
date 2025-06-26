@@ -105,7 +105,7 @@ async def index():
 
 @app.post("/api/images")
 async def receive_image(request: Request, 
-                        # auth_data=Depends(authenticate_request),
+                        auth_data=Depends(authenticate_request),
                         ):
     body = await request.body()
     if not body:
