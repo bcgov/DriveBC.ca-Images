@@ -185,18 +185,33 @@ async def authenticate_request(
             logger.warning(f"Camera ID {camera_id} does not have a valid location mapping")
             record_ip_failure()
             record_auth_failure()
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid camera ID")
+            # raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid camera ID")
+            raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid credentials",
+            headers={"WWW-Authenticate": "Basic realm='AxisCamera'"}
+        )
         
         if not expected_creds:
             logger.warning(f"Credential mismatch for location {camera_location}")
             record_auth_failure()
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid credentials")
-        
+            # raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid credentials")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid credentials",
+                headers={"WWW-Authenticate": "Basic realm='AxisCamera'"}
+            )
+            
     # If the camera IP is known, check if it matches the client's IP
     if expected_ip and client_ip != expected_ip:
         logger.warning(f"IP mismatch for {camera_id}: expected {expected_ip}, got {client_ip}")
         record_auth_failure()
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="IP address mismatch")
+        # raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="IP address mismatch")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid credentials",
+            headers={"WWW-Authenticate": "Basic realm='AxisCamera'"}
+        )
 
     if not expected_creds:
             logger.warning(f"Credential mismatch for location {camera_location}")
@@ -207,7 +222,12 @@ async def authenticate_request(
     if not verify_credentials(credentials, expected_creds):
         logger.warning(f"Invalid credentials for camera {camera_id}")
         record_auth_failure()
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid credentials")
+        # raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid credentials")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid credentials",
+            headers={"WWW-Authenticate": "Basic realm='AxisCamera'"}
+        )
     
     # Record successful authentication
     record_ip_success()
