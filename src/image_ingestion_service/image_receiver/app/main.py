@@ -117,9 +117,9 @@ async def receive_image(request: Request,
     if content_disposition and "filename=" in content_disposition:
         filename = content_disposition.split("filename=")[-1].strip('"')
  
-    camera_id = auth_data["camera_id"]
+    # camera_id = auth_data["camera_id"]
 
-    # camera_id = "343"
+    camera_id = "343"
 
 
 
