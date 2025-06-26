@@ -84,7 +84,7 @@ async def index():
 
 @app.post("/api/images")
 async def receive_image(request: Request, 
-                        auth_data=Depends(authenticate_request),
+                        # auth_data=Depends(authenticate_request),
                         ):
     body = await request.body()
     if not body:
@@ -96,7 +96,13 @@ async def receive_image(request: Request,
     if content_disposition and "filename=" in content_disposition:
         filename = content_disposition.split("filename=")[-1].strip('"')
  
-    camera_id = auth_data["camera_id"]
+    # camera_id = auth_data["camera_id"]
+
+    camera_id = "343"
+
+
+
+
     image_bytes = await request.body()
     if not image_bytes:
         raise HTTPException(status_code=400, detail="No image data received")
