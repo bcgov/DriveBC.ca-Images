@@ -226,13 +226,26 @@ async def receive_image(request: Request,
     auth_header: Optional[str] = request.headers.get("authorization")
     if not auth_header or not auth_header.startswith("Digest "):
         nonce = generate_nonce()
+        # return Response(
+        #     status_code=401,
+        #     headers={
+        #         "WWW-Authenticate": f'Digest realm="{REALM}", nonce="{nonce}", qop="{QOP}"'
+        #     },
+        #     content="Unauthorized",
+        # )
         return Response(
             status_code=401,
             headers={
-                "WWW-Authenticate": f'Digest realm="{REALM}", nonce="{nonce}", qop="{QOP}"'
+                "WWW-Authenticate": (
+                    f'Digest realm="{REALM}", '
+                    f'nonce="{nonce}", '
+                    f'qop="{QOP}", '
+                    f'algorithm="MD5", '
+                    f'opaque="0000000000000000"'
+                )
             },
             content="Unauthorized",
-        )
+    )
 
     # Parse the Digest header
     digest = parse_digest_header(auth_header[7:])  # Skip "Digest "
