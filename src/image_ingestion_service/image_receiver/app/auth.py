@@ -161,8 +161,8 @@ async def authenticate_request(
         # return validated
         # raise HTTPException(status_code=401, detail="Invalid auth header", headers={"WWW-Authenticate": "Basic realm='AxisCamera'"})
         return Response(
-            content="Unauthorized"
-            status_code=status.HTTP_401_UNAUTHORIZED,  # ← missing comma above!
+            status_code=status.HTTP_401_UNAUTHORIZED
+            content="Unauthorized",  # ← missing comma above
             headers={"WWW-Authenticate": 'Basic realm="Login Required"'},
             media_type="text/html"
         )
