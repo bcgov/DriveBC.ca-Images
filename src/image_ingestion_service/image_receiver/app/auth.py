@@ -145,15 +145,15 @@ async def authenticate_request(
     if not auth_header or not auth_header.lower().startswith("basic "):
         # No auth provided
         # Instead of 401, return 200 OK as you wanted
-        # return Response(status_code=200, content="OK")
+        return Response(status_code=200, content="OK")
         # return validated
         # raise HTTPException(status_code=401, detail="No auth header provided", headers={"WWW-Authenticate": "Basic realm='AxisCamera'"})
-        return Response(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            content="Unauthorized",
-            headers={"WWW-Authenticate": "Basic realm='AxisCamera'"},
-            media_type="text/plain"
-        )
+        # return Response(
+        #     status_code=status.HTTP_401_UNAUTHORIZED,
+        #     content="Unauthorized",
+        #     headers={"WWW-Authenticate": "Basic realm='AxisCamera'"},
+        #     media_type="text/plain"
+        # )
     try:
         encoded = auth_header.split(" ")[1]
         decoded = base64.b64decode(encoded).decode("utf-8")
