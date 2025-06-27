@@ -17,6 +17,19 @@ from contextlib import asynccontextmanager
 from fastapi import Request, HTTPException
 from fastapi.security.utils import get_authorization_scheme_param
 
+import hashlib
+import time
+import base64
+from fastapi import FastAPI, Request, Response
+from typing import Optional
+import re
+
+
+USERNAME = "axis_user"
+PASSWORD = "axis_pass"
+REALM = "AxisCamera"
+QOP = "auth"
+
 logger = logging.getLogger(__name__)
 
 def is_jpg_image(image_bytes: bytes) -> bool:
@@ -192,19 +205,7 @@ async def index():
 
 
 
-import hashlib
-import time
-import base64
-from fastapi import FastAPI, Request, Response
-from typing import Optional
-import re
 
-app = FastAPI()
-
-USERNAME = "axis_user"
-PASSWORD = "axis_pass"
-REALM = "AxisCamera"
-QOP = "auth"
 
 def generate_nonce():
     return base64.b64encode(hashlib.md5(str(time.time()).encode()).digest()).decode()
