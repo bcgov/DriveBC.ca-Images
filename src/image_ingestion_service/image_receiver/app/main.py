@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Depends, Request, Response
+from fastapi import FastAPI, HTTPException, Depends, Request, Response, status
 from fastapi.responses import JSONResponse
 import logging
 from PIL import Image
@@ -105,11 +105,20 @@ async def index():
 
 @app.post("/api/images")
 async def receive_image(request: Request, 
-                        validated=Depends(authenticate_request),
+                        auth_data=Depends(authenticate_request),
                         ):
-    if not validated:
+    # if not validated:
+    #     logger.warning("Unauthorized access attempt, discarding request")
+    #     return Response(status_code=200, content="OK")
+
+    if auth_data.status_code == 401:
         logger.warning("Unauthorized access attempt, discarding request")
-        return Response(status_code=200, content="OK")
+        return Response(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            content="Unauthorized",
+            headers={"WWW-Authenticate": "Basic realm='AxisCamera'"},
+            media_type="text/plain"
+        )
     
     body = await request.body()
     if not body:

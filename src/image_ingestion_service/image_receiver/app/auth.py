@@ -146,9 +146,14 @@ async def authenticate_request(
         # No auth provided
         # Instead of 401, return 200 OK as you wanted
         # return Response(status_code=200, content="OK")
-        return validated
+        # return validated
         # raise HTTPException(status_code=401, detail="No auth header provided", headers={"WWW-Authenticate": "Basic realm='AxisCamera'"})
-
+        return Response(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            content="Unauthorized",
+            headers={"WWW-Authenticate": "Basic realm='AxisCamera'"},
+            media_type="text/plain"
+        )
     try:
         encoded = auth_header.split(" ")[1]
         decoded = base64.b64decode(encoded).decode("utf-8")
@@ -157,9 +162,14 @@ async def authenticate_request(
     except Exception:
         # Bad header format
         # return Response(status_code=200, content="OK")  
-        return validated
+        # return validated
         # raise HTTPException(status_code=401, detail="Invalid auth header", headers={"WWW-Authenticate": "Basic realm='AxisCamera'"})
-  
+        return Response(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            content="Unauthorized",
+            headers={"WWW-Authenticate": "Basic realm='AxisCamera'"},
+            media_type="text/plain"
+        )
 
     # --- 2. Perform Validation, but return 200 on failure ---
     get_credentials()
@@ -170,7 +180,13 @@ async def authenticate_request(
         logger.error("Request missing 'content-disposition' header with filename. Discarding.")
         # return Response(status_code=status.HTTP_200_OK, content="OK")
         # raise HTTPException(status_code=400, detail="Image file is required")
-        return validated
+        # return validated
+        return Response(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            content="Unauthorized",
+            headers={"WWW-Authenticate": "Basic realm='AxisCamera'"},
+            media_type="text/plain"
+        )
         
     filename = content_disposition.split("filename=")[-1].strip('"')
     camera_id = os.path.splitext(filename)[0]
@@ -183,7 +199,13 @@ async def authenticate_request(
         record_auth_failure()
         # return Response(status_code=status.HTTP_200_OK, content="OK")
         # raise HTTPException(status_code=400, detail="Image file is required")
-        return validated
+        # return validated
+        return Response(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            content="Unauthorized",
+            headers={"WWW-Authenticate": "Basic realm='AxisCamera'"},
+            media_type="text/plain"
+        )
 
     client_ip = get_client_ip(request)
     expected_creds = LOCATION_USER_PASS_MAPPING.get(region)
@@ -197,7 +219,13 @@ async def authenticate_request(
         record_auth_failure()
         # return Response(status_code=status.HTTP_200_OK, content="OK")
         # raise HTTPException(status_code=401, detail="IP mismatch")
-        return validated
+        # return validated
+        return Response(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            content="Unauthorized",
+            headers={"WWW-Authenticate": "Basic realm='AxisCamera'"},
+            media_type="text/plain"
+        )
 
     # Validate that credentials exist for the location
     if not expected_creds:
@@ -205,7 +233,13 @@ async def authenticate_request(
         record_auth_failure()
         # return Response(status_code=status.HTTP_200_OK, content="OK")
         # raise HTTPException(status_code=401, detail="Credential mismatch")
-        return validated
+        # return validated
+        return Response(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            content="Unauthorized",
+            headers={"WWW-Authenticate": "Basic realm='AxisCamera'"},
+            media_type="text/plain"
+        )
         
     # Validate the provided credentials
     if not verify_credentials_test(username, password):
@@ -213,14 +247,21 @@ async def authenticate_request(
         record_auth_failure()
         # return Response(status_code=status.HTTP_200_OK, content="OK")
         # raise HTTPException(status_code=401, detail="Invalid credentials")
-        return validated
+        # return validated
+        return Response(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            content="Unauthorized",
+            headers={"WWW-Authenticate": "Basic realm='AxisCamera'"},
+            media_type="text/plain"
+        )
 
     # --- 3. If all checks pass, it's a valid request ---
     logger.info(f"Successfully authenticated camera {camera_id}.")
     record_ip_success()
     record_auth_success()
     validated = True
-    return validated
+    # return validated
+    return Response(status_code=status.HTTP_200_OK, content="OK")
 
     # # Return the data so the main endpoint can process it (e.g., send to RabbitMQ)
     # return {
