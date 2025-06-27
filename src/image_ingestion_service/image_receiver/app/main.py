@@ -220,8 +220,9 @@ async def receive_image(request: Request):
     
     record_rabbitmq_success()
 
-    return {
-            "status": "Success", 
-            "camera_id": camera_id,
-            "filename": filename
-        }
+    response = Response(
+        content="Upload successful",
+        status_code=200,
+        media_type="text/html",
+    )
+    return response
