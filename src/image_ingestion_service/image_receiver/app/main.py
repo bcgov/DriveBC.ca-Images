@@ -163,7 +163,7 @@ async def receive_image(request: Request):
         response = Response(
             content="Authentication Required",
             status_code=401,
-            headers={"WWW-Authenticate": 'Basic realm="Authentication Required"'},
+            headers={"WWW-Authenticate": 'Basic realm="Login Required Required"'},
             media_type="text/html",
         )
         return response
