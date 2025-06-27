@@ -157,16 +157,15 @@ async def index():
 @app.post("/api/images")
 async def receive_image(request: Request):
     auth_header = request.headers.get("authorization")
-    logger.info(f"Checking Authorization header: {auth_header}")
+    logger.info(f"Checking to see if Authorization header exists: {auth_header}")
     if not auth_header or not auth_header.lower().startswith("basic "):
-        logger.info(f"Authorization header is missing or not basic")
+        logger.info(f"Confirmed, there is no authorization header or it is not Basic auth")
         response = Response(
-            content="Unauthorized",
+            content="Authentication Required",
             status_code=401,
-            headers={"WWW-Authenticate": 'Basic realm="Login Required"'},
+            headers={"WWW-Authenticate": 'Basic realm="Authentication  Required"'},
             media_type="text/html",
         )
-        logger.info(f"Returning response: {response.status_code} - {response.body.decode() if response.body else 'Unauthorized'}")
         return response
     
     body = await request.body()
