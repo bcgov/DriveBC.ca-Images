@@ -26,6 +26,7 @@ import re
 
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response as StarletteResponse
+from http import HTTPStatus
 
 
 logger = logging.getLogger(__name__)
@@ -76,7 +77,7 @@ class LogResponseMiddleware(BaseHTTPMiddleware):
         )
 
         # Log status and headers
-        logger.info(f"Response Status: {new_response.status_code} {new_response.status_phrase}")
+        logger.info(f"Response Status: {new_response.status_code} {HTTPStatus(new_response.status_code).phrase}")
         logger.info(f"Response Headers: {dict(new_response.headers)}")
 
         return new_response
