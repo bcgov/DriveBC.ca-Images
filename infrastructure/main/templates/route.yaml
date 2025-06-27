@@ -12,10 +12,8 @@ metadata:
     haproxy.router.openshift.io/rate-limit-connections.rate-tcp: "50"
     haproxy.router.openshift.io/rate-limit-connections.rate-http: "20"
     haproxy.router.openshift.io/disable_cookies: "true"
-    haproxy.router.openshift.io/rewrite-target: /
 spec:
   host: {{ .Values.route.host }}
-  path: /image-ingestion/
   to:
     kind: Service
     name: {{ template "app.fullname" . }}
