@@ -130,7 +130,7 @@ async def receive_image(request: Request,
             media_type="text/plain"
         )
 
-    authenticate_request_result = await authenticate_request(request)
+    # authenticate_request_result = await authenticate_request(request)
     
     body = await request.body()
     if not body:
