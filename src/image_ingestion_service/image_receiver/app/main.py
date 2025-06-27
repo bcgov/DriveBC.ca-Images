@@ -161,9 +161,9 @@ async def receive_image(request: Request):
     if not auth_header or not auth_header.lower().startswith("basic "):
         logger.info(f"Confirmed, there is no authorization header or it is not Basic auth")
         response = Response(
-            content="Authentication Required",
+            content="Authentication required",
             status_code=401,
-            headers={"WWW-Authenticate": 'Basic realm="Login Required Required"'},
+            headers={"WWW-Authenticate": 'Basic realm="Login Required"'},
             media_type="text/html",
         )
         return response
