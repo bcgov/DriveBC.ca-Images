@@ -105,20 +105,31 @@ async def index():
 
 @app.post("/api/images")
 async def receive_image(request: Request, 
-                        auth_data=Depends(authenticate_request),
+                        # auth_data=Depends(authenticate_request),
                         ):
-    # if not validated:
-    #     logger.warning("Unauthorized access attempt, discarding request")
-    #     return Response(status_code=200, content="OK")
-
-    if auth_data.status_code == 401:
-        logger.warning("Unauthorized access attempt, discarding request")
+    auth_header = request.headers.get("authorization")
+    if not auth_header:
+        print("No Authorization header found")
         return Response(
             status_code=status.HTTP_401_UNAUTHORIZED,
             content="Unauthorized",
             headers={"WWW-Authenticate": "Basic realm='AxisCamera'"},
             media_type="text/plain"
         )
+    # if not validated:
+    #     logger.warning("Unauthorized access attempt, discarding request")
+    #     return Response(status_code=200, content="OK")
+
+    # if auth_data.status_code == 401:
+    #     logger.warning("Unauthorized access attempt, discarding request")
+    #     return Response(
+    #         status_code=status.HTTP_401_UNAUTHORIZED,
+    #         content="Unauthorized",
+    #         headers={"WWW-Authenticate": "Basic realm='AxisCamera'"},
+    #         media_type="text/plain"
+    #     )
+
+    authenticate_request_result = await authenticate_request(request)
     
     body = await request.body()
     if not body:
