@@ -24,11 +24,9 @@ from fastapi import FastAPI, Request, Response
 from typing import Optional
 import re
 
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.responses import Response as StarletteResponse
 
-USERNAME = "axis_user"
-PASSWORD = "axis_pass"
-REALM = "AxisCamera"
-QOP = "auth"
 
 logger = logging.getLogger(__name__)
 
@@ -48,6 +46,43 @@ def is_jpg_image(image_bytes: bytes) -> bool:
 #     # Shutdown
 #     task.cancel()
 
+
+
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.responses import Response as StarletteResponse
+
+class LogResponseMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        path = request.url.path
+        excluded_paths = ["/api/healthz", "/api/metrics"]
+
+        # Skip logging for excluded paths
+        if path in excluded_paths:
+            return await call_next(request)
+
+        response = await call_next(request)
+
+        # Read and buffer the body
+        body = b""
+        async for chunk in response.body_iterator:
+            body += chunk
+
+        # Create new response with same content
+        new_response = StarletteResponse(
+            content=body,
+            status_code=response.status_code,
+            headers=dict(response.headers),
+            media_type=response.media_type
+        )
+
+        # Log status and headers
+        logger.info(f"Response Status: {new_response.status_code} {new_response.status_phrase}")
+        logger.info(f"Response Headers: {dict(new_response.headers)}")
+
+        return new_response
+
+
+
 app = FastAPI(
     title="MOTT Image Ingestion Service",
     version="1.0.0",
@@ -57,6 +92,8 @@ app = FastAPI(
     openapi_url="/openapi.json",
     # lifespan=lifespan,
 )
+
+app.add_middleware(LogResponseMiddleware)
 
 filename_context: ContextVar[str] = ContextVar("filename_context", default="unknown")
 
