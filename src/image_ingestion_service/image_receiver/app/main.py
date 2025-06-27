@@ -142,16 +142,18 @@ Instrumentator().instrument(app).expose(app, endpoint="/api/metrics")
 
 @app.get("/api/images")
 async def index():
-    return JSONResponse(
+    return Response(
+        content="<p>Image upload endpoint is reachable via GET</p>",
         status_code=200,
-        content={"message": "Image upload endpoint is reachable via GET"}
+        media_type="text/html"
     )
 
 @app.get("/")
 async def index():
-    return JSONResponse(
+    return Response(
+        content="<p>Image upload endpoint is reachable via GET root</p>",
         status_code=200,
-        content={"message": "Image upload endpoint is reachable via GET root"}
+        media_type="text/html"
     )
 
 @app.post("/api/images")
