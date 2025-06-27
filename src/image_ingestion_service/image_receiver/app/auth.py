@@ -147,7 +147,7 @@ async def authenticate_request(
         return Response(
             status_code=status.HTTP_401_UNAUTHORIZED,
             content="Unauthorized",
-            headers={"WWW-Authenticate": 'Basic realm="Login Required"'}
+            headers={"WWW-Authenticate": 'Basic realm="Login Required"'},
             media_type="text/html"
         )
     try:
