@@ -105,8 +105,12 @@ async def index():
 
 @app.post("/api/images")
 async def receive_image(request: Request, 
-                        auth_data=Depends(authenticate_request),
+                        validated=Depends(authenticate_request),
                         ):
+    if not validated:
+        logger.warning("Unauthorized access attempt, discarding request")
+        return Response(status_code=200, content="OK")
+    
     body = await request.body()
     if not body:
         raise HTTPException(status_code=400, detail="No image data received")
@@ -119,7 +123,8 @@ async def receive_image(request: Request,
  
     # camera_id = auth_data["camera_id"]
 
-    camera_id = "343"
+    # camera_id = "343"
+    camera_id = os.path.splitext(filename)[0]
 
 
 

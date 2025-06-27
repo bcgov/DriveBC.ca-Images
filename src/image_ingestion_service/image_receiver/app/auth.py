@@ -139,13 +139,14 @@ async def authenticate_request(
     request: Request,
     # credentials: Optional[HTTPBasicCredentials] = Depends(security, use_cache=False),
 ):
-    
+    validated = False
     auth_header = request.headers.get("authorization")
     # --- 1. Handle the No-Authentication Case ---
     if not auth_header or not auth_header.lower().startswith("basic "):
         # No auth provided
         # Instead of 401, return 200 OK as you wanted
-        return Response(status_code=200, content="OK")
+        # return Response(status_code=200, content="OK")
+        return validated
         # raise HTTPException(status_code=401, detail="No auth header provided", headers={"WWW-Authenticate": "Basic realm='AxisCamera'"})
 
     try:
@@ -156,7 +157,8 @@ async def authenticate_request(
     except Exception:
         # Bad header format
         # return Response(status_code=200, content="OK")  
-        raise HTTPException(status_code=401, detail="Invalid auth header", headers={"WWW-Authenticate": "Basic realm='AxisCamera'"})
+        return validated
+        # raise HTTPException(status_code=401, detail="Invalid auth header", headers={"WWW-Authenticate": "Basic realm='AxisCamera'"})
   
 
     # --- 2. Perform Validation, but return 200 on failure ---
@@ -167,7 +169,8 @@ async def authenticate_request(
     if not (content_disposition and "filename=" in content_disposition):
         logger.error("Request missing 'content-disposition' header with filename. Discarding.")
         # return Response(status_code=status.HTTP_200_OK, content="OK")
-        raise HTTPException(status_code=400, detail="Image file is required")
+        # raise HTTPException(status_code=400, detail="Image file is required")
+        return validated
         
     filename = content_disposition.split("filename=")[-1].strip('"')
     camera_id = os.path.splitext(filename)[0]
@@ -179,7 +182,8 @@ async def authenticate_request(
         record_ip_failure()
         record_auth_failure()
         # return Response(status_code=status.HTTP_200_OK, content="OK")
-        raise HTTPException(status_code=400, detail="Image file is required")
+        # raise HTTPException(status_code=400, detail="Image file is required")
+        return validated
 
     client_ip = get_client_ip(request)
     expected_creds = LOCATION_USER_PASS_MAPPING.get(region)
@@ -192,33 +196,38 @@ async def authenticate_request(
         record_ip_failure()
         record_auth_failure()
         # return Response(status_code=status.HTTP_200_OK, content="OK")
-        raise HTTPException(status_code=401, detail="IP mismatch")
+        # raise HTTPException(status_code=401, detail="IP mismatch")
+        return validated
 
     # Validate that credentials exist for the location
     if not expected_creds:
         logger.warning(f"No credentials configured for location '{region}' (camera {camera_id}). Discarding image and returning 200 OK.")
         record_auth_failure()
         # return Response(status_code=status.HTTP_200_OK, content="OK")
-        raise HTTPException(status_code=401, detail="Credential mismatch")
+        # raise HTTPException(status_code=401, detail="Credential mismatch")
+        return validated
         
     # Validate the provided credentials
     if not verify_credentials_test(username, password):
         logger.warning(f"Invalid credentials for camera {camera_id} from IP {client_ip}. Discarding image and returning 200 OK.")
         record_auth_failure()
         # return Response(status_code=status.HTTP_200_OK, content="OK")
-        raise HTTPException(status_code=401, detail="Invalid credentials")
+        # raise HTTPException(status_code=401, detail="Invalid credentials")
+        return validated
 
     # --- 3. If all checks pass, it's a valid request ---
     logger.info(f"Successfully authenticated camera {camera_id}.")
     record_ip_success()
     record_auth_success()
+    validated = True
+    return validated
 
-    # Return the data so the main endpoint can process it (e.g., send to RabbitMQ)
-    return {
-        "camera_id": camera_id,
-        "camera_location": region,
-        "client_ip": client_ip,
-    }
+    # # Return the data so the main endpoint can process it (e.g., send to RabbitMQ)
+    # return {
+    #     "camera_id": camera_id,
+    #     "camera_location": region,
+    #     "client_ip": client_ip,
+    # }
 
 async def authenticate_request_backup(
     request: Request, 
