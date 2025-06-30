@@ -12,8 +12,7 @@ permissions:
     security-events: write
 
 jobs:
-
-  imagescan-ingestion-service:
+  imagescan-ingestion-service-frontend:
     name: Scan latest Image Ingestion Service Image
     runs-on: ubuntu-latest
     steps:
@@ -22,7 +21,28 @@ jobs:
         env:
           TRIVY_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-db:2
         with:
-          image-ref: 'ghcr.io/bcgov/drivebc.ca-images-ingestion-service:latest'
+          image-ref: 'ghcr.io/bcgov/drivebc.ca-images-frontend:latest'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          severity: 'CRITICAL,HIGH'
+          limit-severities-for-sarif: true
+
+      - name: Upload Trivy scan results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: 'trivy-results.sarif'
+  imagescan-ingestion-service-backend:
+    name: Scan latest Image Ingestion Service Image
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@0.31.0
+        env:
+          TRIVY_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-db:2
+        with:
+          image-ref: 'ghcr.io/bcgov/drivebc.ca-images-backend:latest'
           format: 'sarif'
           output: 'trivy-results.sarif'
           ignore-unfixed: true

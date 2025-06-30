@@ -1,28 +1,41 @@
 fullnameOverride: dev-image-ingestion-service
 nameOverride: dev-image-ingestion-service
 
-replicaCount: 1 
 
-image:
-  repository: ghcr.io/bcgov/drivebc.ca-images-ingestion-service
-  tag: latest
+frontend:
+  replicaCount: 1 
+  image:
+    repository: ghcr.io/bcgov/drivebc.ca-images-frontend
+    tag: latest
+  deployment:
+    resources:
+      requests:
+        cpu: 10m
+        memory: 50Mi
+      limits:
+        memory: 100Mi
+    env:
+      variables:
+        ENVIRONMENT: dev
+  route:
+    host: dev-image-ingestion-service.apps.gold.devops.gov.bc.ca # Hostname for the route
+  podDisruptionBudget: 
+    enabled: false # If you have more than 1 replica, you can set this to true.
+    minAvailable: 1
 
 
-deployment:
-  resources:
-    requests:
-      cpu: 10m
-      memory: 50Mi
-    limits:
-      memory: 100Mi
-
-route:
-  host: dev-image-ingestion-service.apps.gold.devops.gov.bc.ca # Hostname for the route
-  vanityurl: dev-ride.th.gov.bc.ca # Vanity URL for the route, this is the URL that will be used in the frontend
-  iprestricted: false # Set to true if you want to limit IP's the the addresses in the ipallowlist below
-  ipallowlist: 142.34.53.0/24 142.22.0.0/15 142.24.0.0/13 142.32.0.0/13 208.181.128.46/32 # The first 4 ranges are GOV IP's, the last one is for OXD external IP
-
-#not setup yet
-podDisruptionBudget: 
-  enabled: false # If you have more than 1 replica, you can set this to true.
-  minAvailable: 1 
+backend:
+  replicaCount: 1
+  image:
+    repository: ghcr.io/bcgov/drivebc.ca-images-backend
+    tag: latest
+  deployment:
+    resources:
+      requests:
+        cpu: 10m
+        memory: 50Mi
+      limits:
+        memory: 100Mi
+  podDisruptionBudget: 
+    enabled: false # If you have more than 1 replica, you can set this to true.
+    minAvailable: 1

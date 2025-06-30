@@ -12,14 +12,18 @@ from .auth import authenticate_request, LOCATION_USER_PASS_MAPPING, start_creden
 from contextlib import asynccontextmanager
 import redis.asyncio as redis
 from contextvars import ContextVar
+import os
 from contextlib import asynccontextmanager
 from fastapi import Request, HTTPException
+from fastapi.security.utils import get_authorization_scheme_param
 
+import hashlib
+import time
+import base64
+from fastapi import FastAPI, Request, Response
+from typing import Optional
+import re
 
-USERNAME = "axis_user"
-PASSWORD = "axis_pass"
-REALM = "AxisCamera"
-QOP = "auth"
 
 logger = logging.getLogger(__name__)
 
@@ -30,14 +34,14 @@ def is_jpg_image(image_bytes: bytes) -> bool:
     except Exception:
         return False
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    # Startup
-    task = start_credential_refresh_task()
+# @asynccontextmanager
+# async def lifespan(app: FastAPI):
+#     # Startup
+#     task = start_credential_refresh_task()
 
-    yield
-    # Shutdown
-    task.cancel()
+#     yield
+#     # Shutdown
+#     task.cancel()
 
 app = FastAPI(
     title="MOTT Image Ingestion Service",
@@ -46,16 +50,26 @@ app = FastAPI(
     docs_url="/docs", 
     redoc_url="/redoc",
     openapi_url="/openapi.json",
-    lifespan=lifespan,
+    # lifespan=lifespan,
 )
 
 filename_context: ContextVar[str] = ContextVar("filename_context", default="unknown")
 
+async def get_cam_key_from_filename(request: Request):
+    filename = filename_context.get()
+    cam_id = os.path.splitext(filename)[0]
+    return cam_id
+
+import base64
 @app.middleware("http")
 async def log_headers(request: Request, call_next):
     if request.method == "POST":
         print("POST Request Headers:", dict(request.headers))
-        
+        # Remove 'Basic ' prefix
+        auth_header = request.headers.get("authorization")
+        http_version = request.scope.get("http_version", "unknown")
+        print(f"HTTP Version: {http_version}")
+
     response = await call_next(request)
     return response
 
@@ -71,31 +85,49 @@ Instrumentator().instrument(app).expose(app, endpoint="/api/metrics")
 @app.get("/api/images")
 async def index():
     return Response(
-        content="Image ingest endpoint is reachable via GET",
-        media_type="text/plain",
-        status_code=200
+        content="Image upload endpoint is reachable via GET",
+        status_code=200,
+        media_type="text/plain"
     )
 
 @app.get("/")
 async def index():
     return Response(
         content="Image upload endpoint is reachable via GET root",
-        media_type="text/plain",
-        status_code=200
+        status_code=200,
+        media_type="text/plain"
     )
 
 @app.post("/api/images")
 async def receive_image(request: Request, 
                         auth_data=Depends(authenticate_request),
                         ):
+    if auth_data.status_code == 401:
+        logger.warning("Unauthorized access attempt, discarding request")
+        return Response(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            content="Unauthorized",
+            headers={"WWW-Authenticate": "Basic realm='Login Required'"},
+            media_type="text/plain"
+        )
     
+    body = await request.body()
+    if not body:
+        raise HTTPException(status_code=400, detail="No image data received")
+
     # Extract filename from Content-Disposition header
     content_disposition = request.headers.get("content-disposition")
     filename = "123.jpg"
     if content_disposition and "filename=" in content_disposition:
         filename = content_disposition.split("filename=")[-1].strip('"')
  
-    camera_id = auth_data["camera_id"]
+    # camera_id = auth_data["camera_id"]
+
+    # camera_id = "343"
+    camera_id = os.path.splitext(filename)[0]
+
+
+
 
     image_bytes = await request.body()
     if not image_bytes:
@@ -122,15 +154,18 @@ async def receive_image(request: Request,
     try:
         result = await upload_to_ftp(image_bytes, filename, camera_id=camera_id)
         if not result:
+            # logger.error(f"FTP upload failed for {camera_id}")
             return Response(content="FTP upload failed", media_type="text/plain", status_code=200)
         logger.info(f"Pushed to FTP server from {camera_id}")
     except Exception as e:
+        # logger.error(f"Push to FTP failed from {camera_id}: {e}")
         return Response(content="FTP push failed", media_type="text/plain", status_code=200)  
     
     record_rabbitmq_success()
 
-    return Response(
-        content=f"Image received and processed successfully for camera {camera_id} with filename {filename}",
-        media_type="text/plain",
-        status_code=200
+    response = Response(
+        content="Upload successful",
+        status_code=200,
+        media_type="text/html",
     )
+    return response

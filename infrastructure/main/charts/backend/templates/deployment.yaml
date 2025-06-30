@@ -1,0 +1,57 @@
+{{- $deploymentTag := .Values.image.tag | default .Chart.AppVersion -}}
+{{- $deploymentTime := now | date "2006-01-02 15:04:05.000000" -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ template "app.fullname" . }}
+  labels: {{ include "app.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "app.selectorLabels" . | nindent 8 }}
+  template:
+    metadata:
+      labels:
+        {{ include "app.selectorLabels" . | nindent 8 }}
+      annotations:
+        prometheus.io/port: '8000' 
+        prometheus.io/scrape: 'true'  
+        prometheus.io/path: "/api/metrics"
+    spec:
+      containers:
+        - name: {{ template "app.fullname" . }}
+          image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
+          ports:
+            - containerPort: 8000
+              protocol: TCP
+          envFrom:
+          - secretRef: 
+              name: {{ template "app.fullname" . }}
+          resources:
+            requests:
+              cpu: {{ .Values.deployment.resources.requests.cpu }}
+              memory: {{ .Values.deployment.resources.requests.memory }}
+            limits:
+              memory: {{ .Values.deployment.resources.limits.memory }}
+          readinessProbe:
+            httpGet:
+              path: /api/healthz
+              port: 8000
+              httpHeaders:
+              - name: Accept
+                value: application/json
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            successThreshold: 1
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /api/healthz
+              port: 8000
+              httpHeaders:
+              - name: Accept
+                value: application/json
+            initialDelaySeconds: 15
+            periodSeconds: 20
+            failureThreshold: 3

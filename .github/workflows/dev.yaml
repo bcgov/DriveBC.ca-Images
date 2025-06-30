@@ -15,12 +15,13 @@ permissions:
 
 env:
   REGISTRY: ghcr.io
-  INGESTION_IMAGE_NAME: ${{ github.repository }}-ingestion-service
+  BACKEND_IMAGE_NAME: ${{ github.repository }}-backend
+  FRONTEND_IMAGE_NAME: ${{ github.repository }}-frontend
 
 jobs:
-  build-and-push-ingestion-service:
+  build-and-push-frontend:
     runs-on: ubuntu-latest
-    name: Build & Push Image Ingestion Service Image
+    name: Build & Push Frontend Image
     environment: dev
     permissions:
       contents: read
@@ -41,7 +42,52 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ env.INGESTION_IMAGE_NAME }}
+          images: ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE_NAME }}
+          tags: |
+            type=raw,value=latest
+            type=raw,value=latest-dev
+            type=sha,format=long
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push Docker image
+        id: push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./compose/frontend/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+
+  build-and-push-backend:
+    runs-on: ubuntu-latest
+    name: Build & Push Backend Image
+    environment: dev
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+    
+      - name: Log in to the Container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE_NAME }}
           tags: |
             type=raw,value=latest
             type=raw,value=latest-dev
@@ -63,7 +109,7 @@ jobs:
           cache-to: type=gha,mode=max
 
   update-openshift-gold:
-    needs: [build-and-push-ingestion-service]
+    needs: [build-and-push-frontend, build-and-push-backend]
     runs-on: ubuntu-latest
     name: Deploy Latest Images to OpenShift Gold
     environment:
@@ -86,10 +132,10 @@ jobs:
         insecure_skip_tls_verify: false
     - name: Helm upgrade on OpenShift Gold Environment
       run: |
-        helm upgrade dev-image-ingestion-service -f ./infrastructure/main/values-dev.yaml ./infrastructure/main --set image.tag="sha-${{ github.sha }}"
+        helm upgrade dev-image-ingestion-service -f ./infrastructure/main/values-dev.yaml ./infrastructure/main --set frontend.image.tag="sha-${{ github.sha }}" --set backend.image.tag="sha-${{ github.sha }}"
 
   update-openshift-golddr:
-    needs: [build-and-push-ingestion-service]
+    needs: [build-and-push-frontend, build-and-push-backend]
     runs-on: ubuntu-latest
     name: Deploy Latest Images to OpenShift GoldDR
     environment:
@@ -114,4 +160,4 @@ jobs:
 
     - name: Helm upgrade on OpenShift GoldDR Environment
       run: |
-        helm upgrade dev-image-ingestion-service -f ./infrastructure/main/values-dev.yaml -f ./infrastructure/main/values-dev-dr.yaml ./infrastructure/main --set image.tag="sha-${{ github.sha }}"
+        helm upgrade dev-image-ingestion-service -f ./infrastructure/main/values-dev.yaml -f ./infrastructure/main/values-dev-dr.yaml ./infrastructure/main --set frontend.image.tag="sha-${{ github.sha }}" --set backend.image.tag="sha-${{ github.sha }}"
