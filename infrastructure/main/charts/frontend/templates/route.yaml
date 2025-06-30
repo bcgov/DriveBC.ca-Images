@@ -1,0 +1,25 @@
+kind: Route
+apiVersion: route.openshift.io/v1
+metadata:
+  name: {{ template "app.fullname" . }}
+  labels: {{ include "app.labels" . | nindent 4 }}
+  annotations:
+    haproxy.router.openshift.io/rate-limit-connections: "true"
+    haproxy.router.openshift.io/rate-limit-connections.concurrent-tcp: "20"
+    haproxy.router.openshift.io/rate-limit-connections.rate-tcp: "50"
+    haproxy.router.openshift.io/rate-limit-connections.rate-http: "20"
+    haproxy.router.openshift.io/disable_cookies: "true"
+spec:
+  host: {{ .Values.route.host }}
+  to:
+    kind: Service
+    name: {{ template "app.fullname" . }}
+    weight: 100
+  port:
+    targetPort: http
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Allow
+
+
+
