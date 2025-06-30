@@ -1,5 +1,4 @@
 import asyncio
-import base64
 from typing import Optional
 from fastapi import Request, Header, HTTPException, Response, status, Depends
 import logging
@@ -72,7 +71,7 @@ async def update_credentials_periodically():
 def start_credential_refresh_task():
     return asyncio.create_task(update_credentials_periodically())
 
-def get_credentials():
+def get_data_from_db():
     try:
         logger.info("Initializing credentials from DB...")
         creds = get_all_from_db()  
@@ -137,52 +136,15 @@ def convert_camera_json_to_db_data(camera_ip_map: dict) -> list[dict]:
 
 async def authenticate_request(
     request: Request,
-    # credentials: Optional[HTTPBasicCredentials] = Depends(security, use_cache=False),
+    credentials: Optional[HTTPBasicCredentials] = Depends(security, use_cache=False),
 ):
-    validated = False
-    auth_header = request.headers.get("authorization")
-    # --- 1. Handle the No-Authentication Case ---
-    if not auth_header or not auth_header.lower().startswith("basic "):
-        # No auth provided
-        return Response(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            content="Unauthorized",
-            headers={"WWW-Authenticate": "Basic realm='Login Required'"},
-            media_type="text/plain"
-        )
-    try:
-        encoded = auth_header.split(" ")[1]
-        decoded = base64.b64decode(encoded).decode("utf-8")
-        username, password = decoded.split(":", 1)
-        print(f"Username: {username}, Password: {password}")
-    except Exception:
-        # Bad header format
-        # return Response(status_code=200, content="OK")  
-        # return validated
-        # raise HTTPException(status_code=401, detail="Invalid auth header", headers={"WWW-Authenticate": "Basic realm='AxisCamera'"})
-        return Response(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            content="Unauthorized",
-            headers={"WWW-Authenticate": "Basic realm='Login Required'"},
-            media_type="text/plain"
-        )
-
-    # --- 2. Perform Validation, but return 200 on failure ---
-    get_credentials()
+    get_data_from_db()
     db_data = CREDENTIAL_CACHE if CREDENTIAL_CACHE else convert_camera_json_to_db_data(CAMERA_IP_MAPPING)
     
     content_disposition = request.headers.get("content-disposition")
     if not (content_disposition and "filename=" in content_disposition):
         logger.error("Request missing 'content-disposition' header with filename. Discarding.")
-        # return Response(status_code=status.HTTP_200_OK, content="OK")
-        # raise HTTPException(status_code=400, detail="Image file is required")
-        # return validated
-        return Response(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            content="Unauthorized",
-            headers={"WWW-Authenticate": "Basic realm='AxisCamera'"},
-            media_type="text/plain"
-        )
+        raise HTTPException(status_code=400, detail="Image file is required")
         
     filename = content_disposition.split("filename=")[-1].strip('"')
     camera_id = os.path.splitext(filename)[0]
@@ -193,15 +155,7 @@ async def authenticate_request(
         logger.error(f"Validation Error for {filename}: {e}. Discarding image and returning 200 OK.")
         record_ip_failure()
         record_auth_failure()
-        # return Response(status_code=status.HTTP_200_OK, content="OK")
-        # raise HTTPException(status_code=400, detail="Image file is required")
-        # return validated
-        return Response(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            content="Unauthorized",
-            headers={"WWW-Authenticate": "Basic realm='AxisCamera'"},
-            media_type="text/plain"
-        )
+        raise HTTPException(status_code=400, detail="Image file is required")
 
     client_ip = get_client_ip(request)
     expected_creds = LOCATION_USER_PASS_MAPPING.get(region)
@@ -213,191 +167,25 @@ async def authenticate_request(
         logger.warning(f"IP mismatch for {camera_id}: expected {ip_address}, got {client_ip}. Discarding image and returning 200 OK.")
         record_ip_failure()
         record_auth_failure()
-        # return Response(status_code=status.HTTP_200_OK, content="OK")
-        # raise HTTPException(status_code=401, detail="IP mismatch")
-        # return validated
-        return Response(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            content="Unauthorized",
-            headers={"WWW-Authenticate": "Basic realm='AxisCamera'"},
-            media_type="text/plain"
-        )
+        raise HTTPException(status_code=401, detail="IP mismatch")
 
     # Validate that credentials exist for the location
     if not expected_creds:
         logger.warning(f"No credentials configured for location '{region}' (camera {camera_id}). Discarding image and returning 200 OK.")
         record_auth_failure()
-        # return Response(status_code=status.HTTP_200_OK, content="OK")
-        # raise HTTPException(status_code=401, detail="Credential mismatch")
-        # return validated
-        return Response(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            content="Unauthorized",
-            headers={"WWW-Authenticate": "Basic realm='AxisCamera'"},
-            media_type="text/plain"
-        )
+        raise HTTPException(status_code=401, detail="Credential mismatch")
         
     # Validate the provided credentials
-    if not verify_credentials_test(username, password):
+    if not verify_credentials(credentials, expected_creds):
         logger.warning(f"Invalid credentials for camera {camera_id} from IP {client_ip}. Discarding image and returning 200 OK.")
         record_auth_failure()
-        # return Response(status_code=status.HTTP_200_OK, content="OK")
-        # raise HTTPException(status_code=401, detail="Invalid credentials")
-        # return validated
-        return Response(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            content="Unauthorized",
-            headers={"WWW-Authenticate": "Basic realm='AxisCamera'"},
-            media_type="text/plain"
-        )
+        raise HTTPException(status_code=401, detail="Invalid credentials")
 
-    # --- 3. If all checks pass, it's a valid request ---
     logger.info(f"Successfully authenticated camera {camera_id}.")
     record_ip_success()
     record_auth_success()
-    validated = True
-    # return validated
-    return Response(status_code=status.HTTP_200_OK, content="OK")
-
-    # # Return the data so the main endpoint can process it (e.g., send to RabbitMQ)
-    # return {
-    #     "camera_id": camera_id,
-    #     "camera_location": region,
-    #     "client_ip": client_ip,
-    # }
-
-async def authenticate_request_backup(
-    request: Request, 
-    credentials: HTTPBasicCredentials = Depends(security),    
-): 
-    get_credentials()  # Ensure credentials are updated before processing the request
-    if not CREDENTIAL_CACHE:
-        logger.warning("Using fallback static credentials due to empty cache.")
-        db_data = convert_camera_json_to_db_data(CAMERA_IP_MAPPING)
-    else:
-        db_data = CREDENTIAL_CACHE
-        
-    image = await request.body()
-    if not image:
-        raise HTTPException(status_code=400, detail="Image file is required")
-
-    content_disposition = request.headers.get("content-disposition")
-    filename = "123.jpg"
-    if content_disposition and "filename=" in content_disposition:
-        filename = content_disposition.split("filename=")[-1].strip('"')
-    camera_id = os.path.splitext(filename)[0]
-    
-    try:
-        region, ip_address = validate_filename_and_get_region_ip(db_data, filename)
-        if not region or not ip_address:
-            record_ip_failure()
-            record_auth_failure()
-            # raise HTTPException(status_code=403, detail="Invalid camera ID or location mapping")
-            raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Authentication required",
-            headers={"WWW-Authenticate": "Basic realm='AxisCamera'"},
-        )
-    except ValueError as e:
-        record_ip_failure()
-        record_auth_failure()
-        raise HTTPException(status_code=403, detail=str(e))
-    
-    # Check if the camera ID matches the image filename
-    client_ip = get_client_ip(request)
-    expected_ip = ip_address
-    camera_location = region
-    expected_creds = LOCATION_USER_PASS_MAPPING.get(camera_location)
-
-    # Log the attempt
-    logger.info(f"Camera connect attempt: IP={client_ip}, camera-id={filename}")
-
-    # Validate camera IP
-    if not expected_ip:
-        # If the camera ip does not exist in the camera ip mapping, check the credentials against the location mapping
-        logger.warning(f"Unknown camera IP: {client_ip}")
-        record_ip_failure()
-
-        if not camera_location:
-            logger.warning(f"Camera ID {camera_id} does not have a valid location mapping")
-            record_ip_failure()
-            record_auth_failure()
-            # raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid camera ID")
-            return Response(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            content="Invalid credentials",
-            headers={"WWW-Authenticate": "Basic realm='AxisCamera'"},
-            media_type="text/plain"
-        )
-        #     return Response(
-        #     status_code=200,
-        #     content="OK"
-        # )
-        
-        if not expected_creds:
-            logger.warning(f"Credential mismatch for location {camera_location}")
-            record_auth_failure()
-            # raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid credentials")
-            return Response(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            content="Invalid credentials",
-            headers={"WWW-Authenticate": "Basic realm='AxisCamera'"},
-            media_type="text/plain"
-        )
-        #     return Response(
-        #     status_code=200,
-        #     content="OK"
-        # )
-            
-    # If the camera IP is known, check if it matches the client's IP
-    if expected_ip and client_ip != expected_ip:
-        logger.warning(f"IP mismatch for {camera_id}: expected {expected_ip}, got {client_ip}")
-        record_auth_failure()
-        # raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="IP address mismatch")
-        return Response(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            content="Invalid credentials",
-            headers={"WWW-Authenticate": "Basic realm='AxisCamera'"},
-            media_type="text/plain"
-        )
-        # return Response(
-        #     status_code=200,
-        #     content="OK"
-        # )
-
-    if not expected_creds:
-            logger.warning(f"Credential mismatch for location {camera_location}")
-            record_auth_failure()
-            # raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid credentials")
-            return Response(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            content="Invalid credentials",
-            headers={"WWW-Authenticate": "Basic realm='AxisCamera'"},
-            media_type="text/plain"
-        )
-      
-    # Validate credentials
-    if not verify_credentials(credentials, expected_creds):
-        logger.warning(f"Invalid credentials for camera {camera_id}")
-        record_auth_failure()
-        # raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid credentials")
-        return Response(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            content="Invalid credentials",
-            headers={"WWW-Authenticate": "Basic realm='AxisCamera'"},
-            media_type="text/plain"
-        )
-        # return Response(
-        #     status_code=200,
-        #     content="OK"
-        # )
-    
-    # Record successful authentication
-    record_ip_success()
-    record_auth_success()
-
     return {
         "camera_id": camera_id,
-        "camera_location": camera_location,
-        "client_ip": client_ip,
+        "region": region,
+        "ip_address": ip_address
     }
