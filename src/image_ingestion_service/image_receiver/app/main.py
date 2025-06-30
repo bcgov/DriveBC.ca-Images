@@ -72,7 +72,8 @@ async def log_headers(request: Request, call_next):
         print("POST Request Headers:", dict(request.headers))
         # Remove 'Basic ' prefix
         auth_header = request.headers.get("authorization")
-        auth_header = request.headers.get("authorization")
+        http_version = request.scope.get("http_version", "unknown")
+        print(f"HTTP Version: {http_version}")
 
     # if auth_header:
     #     encoded = auth_header.split(" ")[1]
@@ -224,6 +225,7 @@ def parse_digest_header(header: str) -> dict:
 async def receive_image(request: Request, 
                         ):
     auth_header: Optional[str] = request.headers.get("authorization")
+    print("Authorization header:", auth_header)
     if not auth_header or not auth_header.startswith("Digest "):
         nonce = generate_nonce()
         # return Response(
