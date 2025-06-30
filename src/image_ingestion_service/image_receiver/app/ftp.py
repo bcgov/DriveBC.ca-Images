@@ -23,8 +23,7 @@ async def upload_to_ftp(image_bytes: bytes, filename: str, camera_id: str) -> bo
         logger.info(f"Connected to FTP server {host}:{port} as user {user}")
 
         # Ensure target directory exists
-        try:
-            
+        try:       
             await ftp_client.change_directory(target_dir)
         except aioftp.StatusCodeError:
             await ftp_client.make_directory(target_dir)
