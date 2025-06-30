@@ -51,7 +51,7 @@ async def upload_to_ftp(image_bytes: bytes, filename: str, camera_id: str) -> bo
 
     except Exception as e:
         logger.error(f"Push to FTP failed from {camera_id}: {e}")
-        return False
+        raise
 
     finally:
         # Clean up
