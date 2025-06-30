@@ -115,7 +115,7 @@ def verify_credentials(credentials: HTTPBasicCredentials, expected_creds: dict) 
 
 def verify_credentials_test(username: str, password: str) -> bool:
     return (
-        username == "camvi" and password == "Fpf6juQvmEkR7QzpJ7Xw" 
+        username == "test" and password == "test" 
     )
 
 def convert_camera_json_to_db_data(camera_ip_map: dict) -> list[dict]:
