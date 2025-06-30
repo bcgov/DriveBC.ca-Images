@@ -143,11 +143,27 @@ async def authenticate_request(
     auth_header = request.headers.get("authorization")
     # --- 1. Handle the No-Authentication Case ---
     if not auth_header or not auth_header.lower().startswith("basic "):
-        logger.warning("No Authorization header found or not Basic auth. Returning 401 Unauthorized.")
+        # No auth provided
         return Response(
             status_code=status.HTTP_401_UNAUTHORIZED,
             content="Unauthorized",
-            headers={"WWW-Authenticate": 'Basic realm="Login Required"'},
+            headers={"WWW-Authenticate": "Basic realm='Login Required'"},
+            media_type="text/plain"
+        )
+    try:
+        encoded = auth_header.split(" ")[1]
+        decoded = base64.b64decode(encoded).decode("utf-8")
+        username, password = decoded.split(":", 1)
+        print(f"Username: {username}, Password: {password}")
+    except Exception:
+        # Bad header format
+        # return Response(status_code=200, content="OK")  
+        # return validated
+        # raise HTTPException(status_code=401, detail="Invalid auth header", headers={"WWW-Authenticate": "Basic realm='AxisCamera'"})
+        return Response(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            content="Unauthorized",
+            headers={"WWW-Authenticate": "Basic realm='Login Required'"},
             media_type="text/plain"
         )
 
