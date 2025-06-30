@@ -6,7 +6,7 @@ from datetime import datetime
 from .rabbitmq import send_to_rabbitmq
 from .ftp import upload_to_ftp
 from prometheus_fastapi_instrumentator import Instrumentator
-from .auth import authenticate_request, LOCATION_USER_PASS_MAPPING, start_credential_refresh_task, record_rabbitmq_failure, record_rabbitmq_success, get_credentials
+from .auth import authenticate_request, LOCATION_USER_PASS_MAPPING, start_credential_refresh_task, record_rabbitmq_failure, record_rabbitmq_success
 from contextlib import asynccontextmanager
 from contextvars import ContextVar
 from contextlib import asynccontextmanager
