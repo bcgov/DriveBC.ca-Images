@@ -6,6 +6,7 @@ from pydantic import BaseModel
 import boto3
 import aio_pika
 import asyncio
+import aiofiles
 
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -99,8 +100,10 @@ async def handle_image_message(filename: str, body: bytes):
         os.makedirs(save_dir, exist_ok=True)
         filename = f"{uuid.uuid4()}.jpg"
         filepath = os.path.join(save_dir, filename)
-        with open(filepath, "wb") as f:
-            f.write(body)
+        # with open(filepath, "wb") as f:
+        #     f.write(body)
+        async with aiofiles.open(filepath, "wb") as f:
+            await f.write(body)
 
         path = filepath
 
