@@ -18,6 +18,19 @@ spec:
         prometheus.io/port: '8000' 
         prometheus.io/scrape: 'true'  
         prometheus.io/path: "/api/metrics"
+        vault.hashicorp.com/agent-inject: 'true'
+        vault.hashicorp.com/agent-inject-secret-secrets.env: {{ .Values.global.vault.licenceplate }}-{{ .Values.global.vault.environment}}/{{ .Values.vault.secretName }}
+        vault.hashicorp.com/agent-inject-template-secrets.env: |
+          {{`{{- with secret `}}"{{ .Values.global.vault.licenceplate }}-{{ .Values.global.vault.environment }}/{{ .Values.vault.secretName }}"{{` }}
+          {{- range $key, $value := .Data.data }}
+          export {{$key}}="{{$value}}"
+          {{- end }}
+          {{- end `}} }}
+        vault.hashicorp.com/agent-inject-token: 'false'
+        vault.hashicorp.com/agent-pre-populate-only: 'true'
+        vault.hashicorp.com/auth-path: {{ .Values.vault.authPath }}
+        vault.hashicorp.com/namespace: platform-services
+        vault.hashicorp.com/role: {{ .Values.global.vault.licenceplate }}-{{ .Values.global.vault.environment}}
     spec:
       containers:
         - name: {{ template "app.fullname" . }}
@@ -34,6 +47,18 @@ spec:
               memory: {{ .Values.deployment.resources.requests.memory }}
             limits:
               memory: {{ .Values.deployment.resources.limits.memory }}
+          env:
+            - name: DEPLOYMENT_TAG
+              value: {{ $deploymentTag | quote }}
+            - name: DEPLOYMENT_TIME
+              value: {{ $deploymentTime | quote }}
+            - name: RELEASE
+              value: {{ .Values.global.release }}
+          command:
+            - sh
+            - -c
+          args:
+            - . /vault/secrets/secrets.env && exec uvicorn app.main:app --host 0.0.0.0 --port 8000
           readinessProbe:
             httpGet:
               path: /api/healthz
@@ -55,3 +80,13 @@ spec:
             initialDelaySeconds: 15
             periodSeconds: 20
             failureThreshold: 3
+      serviceAccountName: {{ .Values.global.vault.licenceplate }}-vault
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              topologyKey: "app.kubernetes.io/instance"
+              labelSelector:
+                matchLabels:
+                  app.kubernetes.io/name: {{ template "app.name" . }}

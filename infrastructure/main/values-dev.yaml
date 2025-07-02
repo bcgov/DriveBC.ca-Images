@@ -1,6 +1,12 @@
 fullnameOverride: dev-image-ingestion-service
 nameOverride: dev-image-ingestion-service
 
+# These global values are used by all components of the application.
+global:
+  vault:
+    licenceplate: f4dbc3 # This is the license plate you are deploying to. It is used to determine the vault path
+    environment: nonprod #Set to prod if you want to use the prod vault or nonprod for dev/test/uat
+  release: # This is set by Github actions for the prod release. Do not change this value.
 
 frontend:
   replicaCount: 1 
@@ -36,6 +42,11 @@ backend:
         memory: 50Mi
       limits:
         memory: 100Mi
+  vault:
+    secretName: dev-image-ingestion  # This is the name of the secret in vault that contains the environment variables for the app
+    authPath: auth/k8s-gold # Must match cluster. Use one of: k8s-silver, k8s-gold, k8s-golddr, k8s-emerald
+
+
   podDisruptionBudget: 
     enabled: false # If you have more than 1 replica, you can set this to true.
     minAvailable: 1
