@@ -11,15 +11,15 @@ from fastapi.middleware.cors import CORSMiddleware
 
 
 
-# === CONFIG ===
+# Environment variables
 S3_BUCKET = os.getenv("S3_BUCKET")
 S3_REGION = os.getenv("S3_REGION", "us-east-1")
 S3_ACCESS_KEY = os.getenv("S3_ACCESS_KEY")
 S3_SECRET_KEY = os.getenv("S3_SECRET_KEY")
 RABBITMQ_URL = os.getenv("RABBITMQ_URL", "amqp://guest:guest@rabbitmq/")
-STORAGE_MODE = os.getenv("STORAGE_MODE", "s3")  # "s3" or "pvc"
+STORAGE_MODE = os.getenv("STORAGE_MODE", "s3")
 PVC_PATH = os.getenv("PVC_PATH", "/app/data")
-S3_ENDPOINT_URL = os.getenv("S3_ENDPOINT_URL", "http://minio:9000")
+S3_ENDPOINT_URL = os.getenv("S3_ENDPOINT_URL", "")
 
 # S3 client
 s3_client = None
@@ -79,11 +79,13 @@ async def consume_images():
     async with queue.iterator() as queue_iter:
         async for message in queue_iter:
             async with message.process():
-                await handle_image_message(message.body)
+                filename = message.headers.get("filename", "unknown.jpg")
+                await handle_image_message(filename, message.body)
 
-async def handle_image_message(body: bytes):
+async def handle_image_message(filename: str, body: bytes):
+    
     # Simulate metadata: camera_id + timestamp
-    camera_id = "camera1"  # Can pass this in message properties or body
+    camera_id = filename.split("_")[0].split('.')[0]
     timestamp = datetime.utcnow()
 
     if STORAGE_MODE == "s3":
