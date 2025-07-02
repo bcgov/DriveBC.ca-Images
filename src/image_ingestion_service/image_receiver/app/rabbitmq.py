@@ -27,7 +27,6 @@ async def send_to_rabbitmq(image_bytes, filename, camera_id):
                 routing_key=""  # Ignored for fanout
             )
     except Exception as e:
-        logger.error(f"Failed to publish message to RabbitMQ: {e}")
         raise
 
 
