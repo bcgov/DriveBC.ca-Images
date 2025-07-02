@@ -1,3 +1,8 @@
 frontend:
   route:
     host: dev-image-ingestion-service.apps.golddr.devops.gov.bc.ca # Hostname for the route
+
+
+backend:
+  vault:
+    authPath: auth/k8s-golddr # Must match cluster. Use one of: k8s-silver, k8s-gold, k8s-golddr, k8s-emerald
