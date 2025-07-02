@@ -21,42 +21,6 @@ services:
       - DB_USER=${DB_USER}
       - DB_PASSWORD=${DB_PASSWORD}
 
-    # networks:
-    #   - internal-network
-    #   - external-sql-network
-  
-  # ftp-server:
-  #   container_name: ftp-server-drivebc-image
-  #   image: stilliard/pure-ftpd
-  #   ports:
-  #     - "21:21"
-  #   environment:
-  #     - FTP_HOST=${FTP_HOST}
-  #     - FTP_PORT=${FTP_PORT}
-  #     - FTP_USER_NAME=${FTP_USER}
-  #     - FTP_USER_PASS=${FTP_PASS}
-  #     - FTP_USER_HOME=/home/test
-  #   volumes:
-  #     - ./ftp-data:/home/test
-  #   networks:
-  #     - internal-network
-
-  # redis:
-  #   image: "redis:6.2"
-  #   container_name: redis-drivebc-image
-  #   restart: unless-stopped
-  #   command: redis-server --appendonly yes
-  #   ports:
-  #     - "6379:6379"
-  #   networks:
-  #     - internal-network
-  
-  # consumer:
-  #   container_name: consumer-drivebc-image
-  #   build:
-  #     context: ./consumer
-  #   environment:
-  #     - RABBITMQ_URL=${RABBITMQ_URL}
 
   consumer-drivebc:
     container_name: consumer-drivebc-drivebc-image
@@ -65,13 +29,48 @@ services:
     environment:
       - RABBITMQ_URL=${RABBITMQ_URL}
 
-# networks:
-#   internal-network:
-#       driver: bridge
+  image-archiver:
+    build:
+      context: ./image_archiver
+    ports:
+      - "8080:8080"  # ReplayTheDay will hit this API
+    environment:
+      - S3_BUCKET=${S3_BUCKET}
+      - S3_REGION=${S3_REGION}
+      - S3_ACCESS_KEY=${S3_ACCESS_KEY}
+      - S3_SECRET_KEY=${S3_SECRET_KEY}
+      - S3_ENDPOINT_URL=${S3_ENDPOINT_URL}  # Optional, if using MinIO or custom S3-compatible storage
+      - RABBITMQ_URL=${RABBITMQ_URL}
+      - REDIS_URL=${REDIS_URL}
+      - STORAGE_MODE=${STORAGE_MODE}  # 'pvc' or 's3'
+    depends_on:
+      # - rabbitmq
+      - minio
+      - redis
+    volumes:
+      - pvc-data:/app/data  # For PVC style storage
 
-#   external-sql-network:
-#     external: true
-#     name: ${DB_NETWORK}
+  minio:
+    image: minio/minio:latest
+    # command: server /data
+    command: server --console-address ":9001" /data
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio-data:/data
+
+  redis:
+    image: redis:alpine
+    ports:
+      - "6379:6379"
+
+volumes:
+  minio-data:
+  pvc-data:
 
   
 
