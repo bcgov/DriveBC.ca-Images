@@ -54,12 +54,6 @@ class ImageMeta(BaseModel):
 
 # Consumer function to process images from RabbitMQ
 async def consume_images():
-    print("Starting image consumer...")
-    print(f"S3_ACCESS_KEY: {S3_ACCESS_KEY}")
-    print(f"S3_SECRET_KEY: {S3_SECRET_KEY}")
-    print(f"STORAGE_MODE: {STORAGE_MODE}")
-    print(f"endpoint_url: {S3_ENDPOINT_URL}")
-    
     rb_url = os.getenv("RABBITMQ_URL")
     if not rb_url:
         raise ValueError("RABBITMQ_URL environment variable is not set")
