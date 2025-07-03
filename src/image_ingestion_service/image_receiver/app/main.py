@@ -104,9 +104,9 @@ async def receive_image(request: Request,
 
     try:
         await send_to_rabbitmq(image_bytes, filename, camera_id=camera_id)
-        logger.info(f"Pushed to RabbitMQ from {camera_id}")
+        logger.info(f"Pushed to RabbitMQ")
     except Exception as e:
-        logger.error(f"Pushed to RabbitMQ failed from {camera_id}: {e}")
+        logger.error(f"Pushed to RabbitMQ failed")
         record_rabbitmq_failure()
         return Response(content="Push to RabbitMQ failed", media_type="text/plain", status_code=200)  
 
@@ -116,7 +116,7 @@ async def receive_image(request: Request,
             return Response(content="FTP upload failed", media_type="text/plain", status_code=200)
         logger.info(f"Pushed to FTP server from {camera_id}")
     except Exception as e:
-        logger.error(f"FTP push failed from {camera_id}: {e}")
+        logger.error(f"FTP push failed")
         return Response(content="FTP push failed", media_type="text/plain", status_code=200)  
     
     record_rabbitmq_success()
