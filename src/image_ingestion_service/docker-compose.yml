@@ -21,14 +21,6 @@ services:
       - DB_USER=${DB_USER}
       - DB_PASSWORD=${DB_PASSWORD}
 
-
-  consumer-drivebc:
-    container_name: consumer-drivebc-drivebc-image
-    build:
-      context: ./consumer_drivebc
-    environment:
-      - RABBITMQ_URL=${RABBITMQ_URL}
-
   image-processor:
     container_name: image-processor-drivebc-image
     build:
