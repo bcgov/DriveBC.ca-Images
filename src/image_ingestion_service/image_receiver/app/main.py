@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Depends, Request, Response
+from fastapi import FastAPI, HTTPException, Request, Response, Depends
 import logging
 from PIL import Image
 from io import BytesIO
@@ -9,10 +9,8 @@ from prometheus_fastapi_instrumentator import Instrumentator
 from .auth import authenticate_request, LOCATION_USER_PASS_MAPPING, start_credential_refresh_task, record_rabbitmq_failure, record_rabbitmq_success
 from contextlib import asynccontextmanager
 from contextvars import ContextVar
-from contextlib import asynccontextmanager
-from fastapi import Request, HTTPException
-from fastapi import FastAPI, Request, Response
-
+import os
+from urllib.parse import urlparse # Import urlparse
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +34,7 @@ app = FastAPI(
     title="MOTT Image Ingestion Service",
     version="1.0.0",
     description="Handles image ingestion with auth per camera/location.",
-    docs_url="/docs", 
+    docs_url="/docs",
     redoc_url="/redoc",
     openapi_url="/openapi.json",
     lifespan=lifespan,
@@ -48,7 +46,7 @@ filename_context: ContextVar[str] = ContextVar("filename_context", default="unkn
 @app.middleware("http")
 async def log_headers(request: Request, call_next):
     if request.method == "POST":
-        print("POST Request Headers:", dict(request.headers))
+        logger.debug("POST Request Headers: %s", dict(request.headers))
 
     response = await call_next(request)
     return response
@@ -61,7 +59,7 @@ async def health_check():
 # Metrics endpoint
 Instrumentator().instrument(app).expose(app, endpoint="/api/metrics")
 
-
+@app.get("/")
 @app.get("/api/images")
 async def index():
     return Response(
@@ -70,59 +68,70 @@ async def index():
         media_type="text/plain"
     )
 
-@app.get("/")
-async def index():
-    return Response(
-        content="Image upload endpoint is reachable via GET root",
-        status_code=200,
-        media_type="text/plain"
-    )
 
 @app.post("/api/images")
-async def receive_image(request: Request, 
+async def receive_image(request: Request,
                         auth_data=Depends(authenticate_request),
                         ):
-    
-    # Extract filename from Content-Disposition header
-    content_disposition = request.headers.get("content-disposition")
-    filename = "123.jpg"
-    if content_disposition and "filename=" in content_disposition:
-        filename = content_disposition.split("filename=")[-1].strip('"')
- 
-    camera_id = auth_data["camera_id"]
+    if "ID" not in auth_data:
+        logger.error("Auth data missing 'ID' key")
+        raise HTTPException(status_code=500, detail="Internal server error: Camera ID missing from authentication data.")
+
+    camera_id = str(auth_data["ID"]) 
+
     image_bytes = await request.body()
     if not image_bytes:
-        logger.error(f"No image data received")
-        return Response(content="No image data received", media_type="text/plain", status_code=200)  
+        logger.error("No image data received for camera_id=%s", camera_id)
+        return Response(content="No image data received", media_type="text/plain", status_code=200)
 
     if not is_jpg_image(image_bytes):
-        logger.error(f"Invalid image format")
-        return Response(content="Invalid image format", media_type="text/plain", status_code=200)  
-    
+        logger.error("Invalid image format for camera_id=%s", camera_id)
+        return Response(content="Invalid image format", media_type="text/plain", status_code=200)
+
+    # Extract required info from auth_data
+    ftp_folder_url = auth_data.get("Cam_InternetFTP_Folder")
+    ftp_target_filename = auth_data.get("Cam_InternetFTP_Filename")
+
+    if not ftp_folder_url or not ftp_target_filename:
+        logger.error("Missing FTP configuration for camera_id=%s", camera_id)
+        return Response(content="Missing FTP configuration", media_type="text/plain", status_code=200)
+
+    parsed_url = urlparse(ftp_folder_url)
+    ftp_path = parsed_url.path
+
+    if not ftp_path.startswith('/'):
+        ftp_path = '/' + ftp_path
+
+    ftp_path = os.path.normpath(ftp_path)
+
     timestamp = datetime.utcnow().strftime("%Y%m%dT%H%M%SZ")
-    filename = f"{camera_id}_{timestamp}.jpg"
+    rabbitmq_filename = f"{camera_id}_{timestamp}.jpg" # This is for RabbitMQ
 
     try:
-        await send_to_rabbitmq(image_bytes, filename, camera_id=camera_id)
-        logger.info(f"Pushed to RabbitMQ")
+        await send_to_rabbitmq(image_bytes, rabbitmq_filename, camera_id=camera_id)
+        logger.info("Pushed to RabbitMQ for camera_id=%s with filename=%s", camera_id, rabbitmq_filename)
     except Exception as e:
-        logger.error(f"Pushed to RabbitMQ failed")
+        logger.error("Push to RabbitMQ failed for camera_id=%s: %s", camera_id, str(e), exc_info=True)
         record_rabbitmq_failure()
-        return Response(content="Push to RabbitMQ failed", media_type="text/plain", status_code=200)  
+        return Response(content="Push to RabbitMQ failed", media_type="text/plain", status_code=200)
 
     try:
-        result = await upload_to_ftp(image_bytes, filename, camera_id=camera_id)
+        # Pass the extracted path and filename to the FTP upload function
+        result = await upload_to_ftp(image_bytes, ftp_target_filename, camera_id=camera_id, target_ftp_path=ftp_path)
         if not result:
+            logger.error("FTP upload failed for camera_id=%s to path %s/%s", camera_id, ftp_path, ftp_target_filename)
             return Response(content="FTP upload failed", media_type="text/plain", status_code=200)
-        logger.info(f"Pushed to FTP server from {camera_id}")
+        logger.info("Pushed to FTP server for camera_id=%s to path %s/%s", camera_id, ftp_path, ftp_target_filename)
     except Exception as e:
-        logger.error(f"FTP push failed")
-        return Response(content="FTP push failed", media_type="text/plain", status_code=200)  
-    
+        logger.error("FTP push failed for camera_id=%s: %s", camera_id, str(e), exc_info=True)
+        return Response(content="FTP push failed", media_type="text/plain", status_code=200)
+
     record_rabbitmq_success()
 
+    logger.info("Successfully finished processing image for camera_id=%s", camera_id)
+
     return Response(
-        content=f"Image received and processed successfully for camera {camera_id} with filename {filename}",
+        content=f"Image received and processed successfully",
         media_type="text/plain",
         status_code=200
     )
