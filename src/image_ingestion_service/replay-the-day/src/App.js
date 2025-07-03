@@ -1,12 +1,17 @@
 import React from "react";
-import ReplayTheDay from "./ReplayTheDay";
 import DbcImage from "./DbcImage";
+import ReplayFrame from "./ReplayFrame";
 
 function App() {
   return (
     <div className="App">
-      <ReplayTheDay cameraId="343" />
+      <ReplayFrame
+        cameraId="343"
+        apiUrl="http://localhost:8080/replay"
+        s3BucketUrl="http://localhost:9000/test-s3-bucket"
+      />
       <DbcImage cameraId="343" />
+      
     </div>
   );
 }
