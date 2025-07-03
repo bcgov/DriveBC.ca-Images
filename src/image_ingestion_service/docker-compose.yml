@@ -21,17 +21,10 @@ services:
       - DB_USER=${DB_USER}
       - DB_PASSWORD=${DB_PASSWORD}
 
-
-  consumer-drivebc:
-    container_name: consumer-drivebc-drivebc-image
+  image-processor:
+    container_name: image-processor-drivebc-image
     build:
-      context: ./consumer_drivebc
-    environment:
-      - RABBITMQ_URL=${RABBITMQ_URL}
-
-  image-archiver:
-    build:
-      context: ./image_archiver
+      context: ./image_processor
     ports:
       - "8080:8080"  # ReplayTheDay will hit this API
     environment:
@@ -42,7 +35,6 @@ services:
       - S3_ENDPOINT_URL=${S3_ENDPOINT_URL}  # Optional, if using MinIO or custom S3-compatible storage
       - RABBITMQ_URL=${RABBITMQ_URL}
       - REDIS_URL=${REDIS_URL}
-      - STORAGE_MODE=${STORAGE_MODE}  # 'pvc' or 's3'
     depends_on:
       # - rabbitmq
       - minio

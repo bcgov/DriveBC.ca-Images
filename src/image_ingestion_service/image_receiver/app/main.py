@@ -92,25 +92,23 @@ async def receive_image(request: Request,
     camera_id = auth_data["camera_id"]
     image_bytes = await request.body()
     if not image_bytes:
-        raise HTTPException(status_code=400, detail="No image data received")
+        logger.error(f"No image data received")
+        return Response(content="No image data received", media_type="text/plain", status_code=200)  
 
     if not is_jpg_image(image_bytes):
-        logger.warning(f"Invalid image format")
-        raise HTTPException(
-            status_code=415,
-            detail="The camera image is not in JPG/JPEG format."
-        )
+        logger.error(f"Invalid image format")
+        return Response(content="Invalid image format", media_type="text/plain", status_code=200)  
     
     timestamp = datetime.utcnow().strftime("%Y%m%dT%H%M%SZ")
     filename = f"{camera_id}_{timestamp}.jpg"
 
     try:
         await send_to_rabbitmq(image_bytes, filename, camera_id=camera_id)
-        logger.info(f"Pushed to RabbitMQ from {camera_id}")
+        logger.info(f"Pushed to RabbitMQ")
     except Exception as e:
-        logger.error(f"Pushed to RabbitMQ failed from {camera_id}: {e}")
+        logger.error(f"Pushed to RabbitMQ failed")
         record_rabbitmq_failure()
-        raise HTTPException(status_code=500, detail="Failed to push image to RabbitMQ")
+        return Response(content="Push to RabbitMQ failed", media_type="text/plain", status_code=200)  
 
     try:
         result = await upload_to_ftp(image_bytes, filename, camera_id=camera_id)
@@ -118,6 +116,7 @@ async def receive_image(request: Request,
             return Response(content="FTP upload failed", media_type="text/plain", status_code=200)
         logger.info(f"Pushed to FTP server from {camera_id}")
     except Exception as e:
+        logger.error(f"FTP push failed")
         return Response(content="FTP push failed", media_type="text/plain", status_code=200)  
     
     record_rabbitmq_success()
