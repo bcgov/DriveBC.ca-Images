@@ -1,9 +1,19 @@
+from math import floor
+from zoneinfo import ZoneInfo
+from click import wrap_text
+from fastapi import logger
 import aio_pika
 import asyncio
 import os
 from PIL import Image, ImageDraw, ImageFont
 from io import BytesIO
 from datetime import datetime, timezone, timedelta
+from pathlib import Path
+
+APP_DIR = Path(__file__).resolve().parent
+FONT = ImageFont.truetype(f'{APP_DIR}/static/BCSans.otf', size=14)
+FONT_LARGE = ImageFont.truetype(f'{APP_DIR}/static/BCSans.otf', size=24)
+CAMS_DIR = f'{APP_DIR}/images/webcams'
 
 def format_time(past_time):
     now = datetime.now(timezone.utc)
@@ -118,6 +128,92 @@ async def consume():
 
                 # Add watermark
                 add_custom_watermark(message.body, timestamp_header)
+
+                # Add watermark as before
+                # update_webcam_image_from_rabbitmq(, message.body, "America/Vancouver")
+
+def update_webcam_image_from_rabbitmq(webcam, image_data, tz):
+    '''
+    Retrieve the current cam image, stamp it and save it
+
+    Per JIRA ticket DBC22-1857
+
+    '''
+
+    try:
+        if image_data is None:
+            return
+
+        raw = Image.open(image_data)
+        width, height = raw.size
+        if width > 800:
+            ratio = 800 / width
+            width = 800
+            height = floor(height * ratio)
+            raw = raw.resize((width, height))
+
+        stamped = Image.new('RGB', (width, height + 18))
+        pen = ImageDraw.Draw(stamped)
+        lastmod = webcam.get('last_update_modified')
+
+        if webcam.get('is_on'):
+            stamped.paste(raw)  # leaves 18 pixel black bar left at bottom
+
+            timestamp = 'Last modification time unavailable'
+            if lastmod is not None:
+                month = lastmod.strftime('%b')
+                day = lastmod.strftime('%d')
+                day = day[1:] if day[:1] == '0' else day  # strip leading zero
+                dt_local = lastmod.astimezone(ZoneInfo(tz))
+                timestamp = f'{month} {day}, {dt_local.strftime("%Y %H:%M:%S %p %Z")}'
+
+            pen.text((width - 3,  height + 14), timestamp, fill="white",
+                     anchor='rs', font=FONT)
+
+        else:  # camera is unavailable, replace image with message
+            message = webcam.get('message', {}).get('long')
+            wrapped = wrap_text(message, pen, FONT_LARGE, min(width - 40, 500))
+            bbox = pen.multiline_textbbox((0, 0), wrapped, font=FONT_LARGE)
+            x = (width - bbox[2]) / 2
+            pen.multiline_text((x, 20), wrapped, fill="white", align='center',
+                               font=FONT_LARGE)
+            pen.polygon(((0, height), (width, height),
+                         (width, height + 18), (0, height + 18)),
+                        fill="red")
+
+        # add mark and timestamp to black bar
+        mark = webcam.get('dbc_mark', '')
+        pen.text((3,  height + 14), mark, fill="white", anchor='ls', font=FONT)
+
+        # save image in shared volume
+        filename = f'{CAMS_DIR}/{webcam["id"]}.jpg'
+        with open(filename, 'wb') as saved:
+            stamped.save(saved, 'jpeg', quality=75, exif=raw.getexif())
+
+        # Set the last modified time to the last modified time plus a timedelta
+        # calculated mean time between updates, minus the standard
+        # deviation.  If that can't be calculated, default to 5 minutes.  This is
+        # then used to set the expires header in nginx.
+        delta = 300  # 5 minutes
+        try:
+            mean = webcam.get('update_period_mean')
+            stddev = webcam.get('update_period_stddev', 0)
+            delta = mean - stddev
+
+        except Exception as e:
+            logger.info(e)
+
+        if lastmod is not None:
+            delta = datetime.timedelta(seconds=delta)
+            lastmod = floor((lastmod + delta).timestamp())  # POSIX timestamp
+            os.utime(filename, times=(lastmod, lastmod))
+
+    except HTTPError as e:  # log HTTP errors without stacktrace to reduce log noise
+        logger.error(f'{e} on camera {webcam['id']}')
+
+    except Exception as e:
+        logger.exception(e)
+
 
 
 if __name__ == "__main__":

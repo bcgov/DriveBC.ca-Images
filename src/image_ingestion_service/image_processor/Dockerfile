@@ -10,6 +10,14 @@ RUN addgroup --system appgroup && adduser --system --ingroup appgroup appuser
 
 COPY app ./app
 
+# Create directory + set permissions
+RUN mkdir -p /app/app/images/webcams/originals && \
+    mkdir -p /app/app/images/webcams/watermarked && \
+    chown -R appuser:appgroup /app/app/images/webcams/originals && \
+    chown -R appuser:appgroup /app/app/images/webcams/watermarked && \
+    chmod -R 775 /app/app/images/webcams
+
+
 # Switch to non-root user
 USER appuser
 
