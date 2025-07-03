@@ -92,11 +92,11 @@ async def receive_image(request: Request,
     camera_id = auth_data["camera_id"]
     image_bytes = await request.body()
     if not image_bytes:
-        logger.error(f"No image data received from {camera_id}: {e}")
+        logger.error(f"No image data received")
         return Response(content="No image data received", media_type="text/plain", status_code=200)  
 
     if not is_jpg_image(image_bytes):
-        logger.error(f"Invalid image format from {camera_id}: {e}")
+        logger.error(f"Invalid image format")
         return Response(content="Invalid image format", media_type="text/plain", status_code=200)  
     
     timestamp = datetime.utcnow().strftime("%Y%m%dT%H%M%SZ")
