@@ -55,7 +55,6 @@ const ReplayTheDay = ({ cameraId, apiUrl, s3BucketUrl }) => {
       }}>
         <div>
           <span style={{ marginRight: "0.5rem" }}>Replay the day</span>
-          <input type="checkbox" checked={playing} onChange={() => setPlaying(!playing)} />
         </div>
       </div>
 
@@ -66,10 +65,10 @@ const ReplayTheDay = ({ cameraId, apiUrl, s3BucketUrl }) => {
             display: "inline-block"}}>
           <img
             src={`${s3BucketUrl}/${currentImage.path}`}
-            alt={`Image ${currentIndex + 1}`}
+            alt={`frame ${currentIndex + 1}`}
             style={{
                 display: "block",
-                width: "720px",
+                width: "380px",
                 height: "auto",
                 maxHeight: "420px",
                 borderRadius: "0.5rem",
