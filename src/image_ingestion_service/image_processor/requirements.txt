@@ -6,3 +6,6 @@ pydantic
 redis
 aiofiles
 pillow
+timezonefinder
+sqlalchemy
+pyodbc
