@@ -35,6 +35,10 @@ services:
       - S3_ENDPOINT_URL=${S3_ENDPOINT_URL}  # Optional, if using MinIO or custom S3-compatible storage
       - RABBITMQ_URL=${RABBITMQ_URL}
       - REDIS_URL=${REDIS_URL}
+      - DB_SERVER=${DB_SERVER}
+      - DB_NAME=${DB_NAME}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
     depends_on:
       # - rabbitmq
       - minio

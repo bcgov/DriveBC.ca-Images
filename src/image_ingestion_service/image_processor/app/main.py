@@ -1,4 +1,5 @@
 import io
+import json
 import logging
 from math import floor
 import os
@@ -15,6 +16,11 @@ from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from .db import get_all_from_db
+from timezonefinder import TimezoneFinder
+from zoneinfo import ZoneInfo
+
+tf = TimezoneFinder()
 
 
 APP_DIR = Path(__file__).resolve().parent
@@ -95,19 +101,46 @@ async def consume_images():
                 filename = message.headers.get("filename", "unknown.jpg")
                 await handle_image_message(filename, message.body)
 
-def watermark_image(camera_id: str, image_data: bytes, tz: str = 'America/Vancouver'):
-    # fake webcam data
-    webcam = {
-        "id": camera_id,
-        "last_update_modified": datetime.utcnow(),
-        "update_period_mean": 300,
-        "update_period_stddev": 60,
-        "dbc_mark": "DriveBC",
-        "is_on": True,
-        "message": {
-            "long": "This is a sample message for the webcam."
+def process_camera_rows(rows):
+    if not rows:
+        logger.error("No camera rows found in the database.")
+        return []
+    camera_list = []
+    for row in rows:
+        camera_obj = {
+            'id': row.get('ID'),
+            'cam_locationsGeo_latitude': row.get('Cam_LocationsGeo_Latitude'),
+            'cam_locationsGeo_longitude': row.get('Cam_LocationsGeo_Longitude'),
+            "last_update_modified": datetime.utcnow(),
+            "update_period_mean": 300,
+            "update_period_stddev": 60,
+            "dbc_mark": "DriveBC",
+            "is_on": True,
+            "message": {
+                "long": "This is a sample message for the webcam."
+            }
         }
-    }
+        camera_list.append(camera_obj)
+    return camera_list
+
+def get_timezone(webcam):
+    lat = float(webcam.get('cam_locationsGeo_latitude'))
+    lon = float(webcam.get('cam_locationsGeo_longitude'))
+
+    tz_name = tf.timezone_at(lat=lat, lng=lon)
+    return tz_name if tz_name else 'America/Vancouver'  # Fallback to PST if no timezone found
+
+def watermark_image(camera_id: str, image_data: bytes, tz: str = 'America/Vancouver'):
+    # Load camera data from the database
+    rows = get_all_from_db()
+    db_data = process_camera_rows(rows)
+    if not db_data:
+        logger.error("No camera data available for watermarking.")
+        return
+    webcams = [cam for cam in db_data if cam['id'] == int(camera_id)]
+    webcam = webcams[0] if webcams else None
+    tz = get_timezone(webcam) if webcam else 'America/Vancouver'
+    
     try:
         if image_data is None:
             return
@@ -178,11 +211,10 @@ def watermark_image(camera_id: str, image_data: bytes, tz: str = 'America/Vancou
             os.utime(filename, times=(lastmod, lastmod))
 
     except Exception as e:
-        logger.error(f"Error processing image {filename}: {e}")
+        logger.error(f"Error processing image from camer: {camera_id} - {e}")
 
-
+ 
 async def handle_image_message(filename: str, body: bytes):
-    
     # Metadata: camera_id + timestamp
     camera_id = filename.split("_")[0].split('.')[0]
     timestamp = datetime.utcnow()
@@ -204,7 +236,7 @@ async def handle_image_message(filename: str, body: bytes):
     async with aiofiles.open(filepath, "wb") as f:
         await f.write(body)
     pvc_path = filepath
-    logger.info(f"Original image saved to PVC at {filepath}")
+    print(f"Original image saved to PVC at {filepath}")
 
     # Save watermarked image
     logger.info(f"Watermarking image for camera {camera_id} at {timestamp}")
