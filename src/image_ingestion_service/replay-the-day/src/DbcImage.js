@@ -52,8 +52,8 @@ function DbcImage({ cameraId }) {
 
     <img 
         src={`${s3BucketUrl}/${imageMeta.path}`} 
-        alt={`Original image from camera ${cameraId}`} 
-        style={{ borderRadius: "0.5rem", boxShadow: "0 2px 8px rgba(0,0,0,0.1)", maxWidth: "100%" }}
+        alt={`Original from camera ${cameraId}`} 
+        style={{ borderRadius: "0.5rem", boxShadow: "0 2px 8px rgba(0,0,0,0.1)", maxWidth: "50%" }}
     />
 
     <h2 style={{ fontWeight: "bold", fontSize: "1.25rem", marginBottom: "0.5rem" }}>
@@ -62,8 +62,8 @@ function DbcImage({ cameraId }) {
         
     <img 
         src={`${watermarkedPvcUrl}/${cameraId}.jpg?ts=${Date.now()}`} 
-        alt={`Original image from camera ${cameraId}`} 
-        style={{ borderRadius: "0.5rem", boxShadow: "0 2px 8px rgba(0,0,0,0.1)", maxWidth: "100%" }}
+        alt={`Watermarked from camera ${cameraId}`} 
+        style={{ borderRadius: "0.5rem", boxShadow: "0 2px 8px rgba(0,0,0,0.1)", maxWidth: "50%" }}
     />
 
         <p style={{ fontSize: "0.875rem", color: "#555", marginTop: "0.25rem" }}>
