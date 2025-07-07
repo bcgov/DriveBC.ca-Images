@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from "react";
 import axios from "axios";
 
-const ReplayTheDay = ({ cameraId, apiUrl, s3BucketUrl }) => {
+const ReplayTheDay = ({ cameraId, apiUrl, s3BucketUrl, replayTheDay }) => {
   const [images, setImages] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [playing, setPlaying] = useState(false);
@@ -54,7 +54,9 @@ const ReplayTheDay = ({ cameraId, apiUrl, s3BucketUrl }) => {
         padding: "0.5rem"
       }}>
         <div>
-          <span style={{ marginRight: "0.5rem" }}>Replay the day</span>
+        <span style={{ marginRight: "0.5rem" }}>
+          {replayTheDay ? "(PVC watermarked) Replay the day" : "(S3 original) Timelapse"} for Camera {cameraId}
+        </span>
         </div>
       </div>
 
@@ -63,10 +65,21 @@ const ReplayTheDay = ({ cameraId, apiUrl, s3BucketUrl }) => {
         <div style={{ 
             position: "relative", 
             display: "inline-block"}}>
-          <img
-            src={`${s3BucketUrl}/${currentImage.path}`}
-            alt={`frame ${currentIndex + 1}`}
-            style={{
+            <img
+              src={
+                replayTheDay
+                  ? (() => {
+                      const parts = `${s3BucketUrl}/${currentImage.path}`.split("/");
+                      const baseUrl = parts.slice(0, 6).join("/");
+                      const filename = parts.at(-1);
+                      // console.log(`Base URL: ${baseUrl}, Filename: ${filename}`);
+                      return `${baseUrl}/${cameraId}/${filename}`;
+                    })()
+                  : `${s3BucketUrl}/${currentImage.path}`
+              }
+              className="replay-frame"
+              alt={`frame ${currentIndex + 1}`}
+              style={{
                 display: "block",
                 width: "380px",
                 height: "auto",
@@ -74,7 +87,7 @@ const ReplayTheDay = ({ cameraId, apiUrl, s3BucketUrl }) => {
                 borderRadius: "0.5rem",
                 boxShadow: "0 2px 8px rgba(0,0,0,0.1)"
               }}
-          />
+            />
           <div style={{
             position: "absolute",
             bottom: "8px",

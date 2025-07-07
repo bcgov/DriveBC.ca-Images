@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 
-const originalImageUrl = "http://localhost:8080/images";
+const originalImageUrl = "http://localhost:8080/api/images/original";
 const s3BucketUrl = "http://localhost:9000/test-s3-bucket";
-const watermarkedPvcUrl = "http://localhost:8080/images/watermarked";
+const watermarkedPvcUrl = "http://localhost:8080/api/images/watermarked";
 
 function DbcImage({ cameraId }) {
   const [imageMeta, setImageMeta] = useState(null);
@@ -47,7 +47,7 @@ function DbcImage({ cameraId }) {
   return (
     <div style={{ padding: "1rem" }}>
       <h2 style={{ fontWeight: "bold", fontSize: "1.25rem", marginBottom: "0.5rem" }}>
-        Latest Original Image
+        Latest Original Image, from S3 bucket
       </h2>
 
     <img 
@@ -57,11 +57,11 @@ function DbcImage({ cameraId }) {
     />
 
     <h2 style={{ fontWeight: "bold", fontSize: "1.25rem", marginBottom: "0.5rem" }}>
-        Latest Watermarked Image
+        Latest Watermarked Image, from PVC
     </h2>
         
     <img 
-        src={`${watermarkedPvcUrl}/${cameraId}.jpg?ts=${Date.now()}`} 
+        src={`${watermarkedPvcUrl}/${cameraId}/${imageMeta.path.split("/").pop()}`}
         alt={`Watermarked from camera ${cameraId}`} 
         style={{ borderRadius: "0.5rem", boxShadow: "0 2px 8px rgba(0,0,0,0.1)", maxWidth: "50%" }}
     />

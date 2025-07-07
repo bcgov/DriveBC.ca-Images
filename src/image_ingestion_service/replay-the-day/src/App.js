@@ -38,11 +38,24 @@ function App() {
           placeholder="Enter camera ID"
         />
       </div>
-      <ReplayFrame
-        cameraId={cameraId}
-        apiUrl="http://localhost:8080/replay"
-        s3BucketUrl="http://localhost:9000/test-s3-bucket"
-      />
+
+      <div style={{ display: "flex", flexDirection: "column" }}>
+        <ReplayFrame
+          replayTheDay={true}
+          cameraId={cameraId}
+          apiUrl="http://localhost:8080/api/replay"
+          s3BucketUrl="http://localhost:8080/api/images/watermarked"
+        />
+        <ReplayFrame
+          replayTheDay={false}
+          cameraId={cameraId}
+          apiUrl="http://localhost:8080/api/replay"
+          s3BucketUrl="http://localhost:9000/test-s3-bucket"
+        />
+      </div>
+
+
+
       <DbcImage cameraId={cameraId} />
 
     </div>

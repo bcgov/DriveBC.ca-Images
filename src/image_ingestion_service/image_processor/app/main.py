@@ -59,6 +59,7 @@ index_db = [] # image index loaded from DB
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    global index_db
     # Initialize database
     db_pool = await init_db()
 
@@ -66,7 +67,7 @@ async def lifespan(app: FastAPI):
     index_db = await load_index_from_db(db_pool)
 
     # Start background tasks
-    asyncio.create_task(consume_images())
+    asyncio.create_task(consume_images(db_pool))
 
     # Yield control back to FastAPI
     yield
@@ -86,7 +87,7 @@ app.add_middleware(
 )
 
 # Static files for watermarked images on PVC
-app.mount("/images/watermarked", StaticFiles(directory="/app/app/images/webcams/watermarked"), name="watermarked")
+app.mount("/api/images/watermarked", StaticFiles(directory="/app/app/images/webcams/watermarked"), name="watermarked")
 
 
 
@@ -100,7 +101,6 @@ class ImageMeta(BaseModel):
 
 async def load_index_from_db(db_pool: any):
     print("Database connection pool initialized. Fetching records...")
-    global index_db  # if `index` is a global list
     async with db_pool.acquire() as conn:
         records = await conn.fetch("""
             SELECT camera_id, timestamp, s3_path, pvc_path, watermarked_path
@@ -126,7 +126,7 @@ async def load_index_from_db(db_pool: any):
 
 
 # Consumer function to process images from RabbitMQ
-async def consume_images():
+async def consume_images(db_pool: any):
     rb_url = os.getenv("RABBITMQ_URL")
     if not rb_url:
         raise ValueError("RABBITMQ_URL environment variable is not set")
@@ -150,7 +150,7 @@ async def consume_images():
     exchange = await channel.get_exchange("test.fanout_image_test")
     await queue.bind(exchange)
 
-    db_pool = await init_db()
+    # db_pool = await init_db()
 
     async with queue.iterator() as queue_iter:
         async for message in queue_iter:
@@ -168,7 +168,7 @@ def process_camera_rows(rows):
             'id': row.get('ID'),
             'cam_locationsGeo_latitude': row.get('Cam_LocationsGeo_Latitude'),
             'cam_locationsGeo_longitude': row.get('Cam_LocationsGeo_Longitude'),
-            "last_update_modified": datetime.utcnow(),
+            "last_update_modified": datetime.now(timezone.utc),
             "update_period_mean": 300,
             "update_period_stddev": 60,
             "dbc_mark": "DriveBC",
@@ -187,7 +187,7 @@ def get_timezone(webcam):
     tz_name = tf.timezone_at(lat=lat, lng=lon)
     return tz_name if tz_name else 'America/Vancouver'  # Fallback to PST if no timezone found
 
-def watermark_image(camera_id: str, image_data: bytes, tz: str = 'America/Vancouver'):
+def watermark_image(camera_id: str, image_data: bytes, milliseconds: int, tz: str = 'America/Vancouver'):
     # Load camera data from the database
     rows = get_all_from_db()
     db_data = process_camera_rows(rows)
@@ -197,7 +197,6 @@ def watermark_image(camera_id: str, image_data: bytes, tz: str = 'America/Vancou
     webcams = [cam for cam in db_data if cam['id'] == int(camera_id)]
     webcam = webcams[0] if webcams else None
     tz = get_timezone(webcam) if webcam else 'America/Vancouver'
-    
     try:
         if image_data is None:
             return
@@ -224,7 +223,6 @@ def watermark_image(camera_id: str, image_data: bytes, tz: str = 'America/Vancou
                 day = day[1:] if day[:1] == '0' else day  # strip leading zero
                 dt_local = lastmod.astimezone(ZoneInfo(tz))
                 timestamp = f'{month} {day}, {dt_local.strftime("%Y %H:%M:%S %p %Z")}'
-
             pen.text((width - 3,  height + 14), timestamp, fill="white",
                      anchor='rs', font=FONT)
 
@@ -244,11 +242,16 @@ def watermark_image(camera_id: str, image_data: bytes, tz: str = 'America/Vancou
         pen.text((3,  height + 14), mark, fill="white", anchor='ls', font=FONT)
 
         # save image in shared volume
-        os.makedirs(os.path.dirname(f'{PVC_ORIGINAL_PATH}'), exist_ok=True)
-        filename = f'{PVC_WATERMARKED_PATH}/{webcam["id"]}.jpg'
-        with open(filename, 'wb') as saved:
+        os.makedirs(os.path.dirname(f'{PVC_WATERMARKED_PATH}'), exist_ok=True)
+
+        save_dir = os.path.join(PVC_WATERMARKED_PATH, camera_id)
+        os.makedirs(save_dir, exist_ok=True)
+        filename = f"{milliseconds}.jpg"
+        filepath = os.path.join(save_dir, filename)
+
+        with open(filepath, 'wb') as saved:
             stamped.save(saved, 'jpeg', quality=75, exif=raw.getexif())
-        print(f"Watermarked image saved to {filename}")
+        logger.info(f"Watermarked image saved to {filepath}")
         # Set the last modified time to the last modified time plus a timedelta
         # calculated mean time between updates, minus the standard
         # deviation.  If that can't be calculated, default to 5 minutes.  This is
@@ -261,11 +264,6 @@ def watermark_image(camera_id: str, image_data: bytes, tz: str = 'America/Vancou
 
         except Exception as e:
             logger.error(f"Error calculating delta: {e}")
-
-        if lastmod is not None:
-            delta = timedelta(seconds=delta)
-            lastmod = floor((lastmod + delta).timestamp())  # POSIX timestamp
-            os.utime(filename, times=(lastmod, lastmod))
 
     except Exception as e:
         logger.error(f"Error processing image from camer: {camera_id} - {e}")
@@ -293,12 +291,12 @@ async def handle_image_message(db_pool: any, filename: str, body: bytes):
     async with aiofiles.open(filepath, "wb") as f:
         await f.write(body)
     pvc_path = filepath
-    print(f"Original image saved to PVC at {filepath}")
+    logger.info(f"Original image saved to PVC at {filepath}")
 
     # Save watermarked image
     logger.info(f"Watermarking image for camera {camera_id} at {timestamp}")
-    watermark_image(camera_id, body)
-    watermarked_path = f"{PVC_WATERMARKED_PATH}/{camera_id}.jpg"
+    watermark_image(camera_id, body, milliseconds)
+    watermarked_path = f"{PVC_WATERMARKED_PATH}/{camera_id}/{milliseconds}.jpg"
 
     # Update index
     index.append({
@@ -311,8 +309,6 @@ async def handle_image_message(db_pool: any, filename: str, body: bytes):
     })
 
     # Insert record into DB
-    print(f"Saving image index for camera {camera_id} at {timestamp} to DB")
-    # db_pool = await asyncpg.create_pool(dsn=os.getenv("POSTGRES_DSN"))
     async with db_pool.acquire() as conn:
         await conn.execute("""
             INSERT INTO image_index (camera_id, timestamp, s3_path, pvc_path, watermarked_path)
@@ -322,7 +318,7 @@ async def handle_image_message(db_pool: any, filename: str, body: bytes):
     logger.info(f"Image index for camera {camera_id} at {timestamp} saved to DB")
 
 # Endpoint for replay the day
-@app.get("/replay/{camera_id}")
+@app.get("/api/replay/{camera_id}")
 async def get_replay(camera_id: str):
     cutoff = datetime.now(timezone.utc) - timedelta(hours=24)
 
@@ -334,9 +330,11 @@ async def get_replay(camera_id: str):
     return results
 
 # Endpoint for original image used for new control panel in RIDE
-@app.get("/images/{camera_id}")
+@app.get("/api/images/original/{camera_id}")
 async def get_original_image(camera_id: str):
     cutoff = datetime.now(timezone.utc) - timedelta(hours=24)
+    # db_pool = await init_db()
+    # index_db = await load_index_from_db(db_pool)
 
     filtered = [
         # entry for entry in index
@@ -344,6 +342,26 @@ async def get_original_image(camera_id: str):
         if entry["camera_id"] == camera_id and entry["timestamp"] >= cutoff
     ]
 
+    if not filtered:
+        raise HTTPException(status_code=404, detail="No image found in the last 24 hours for this camera")
+
+    # Find the latest one
+    latest_entry = max(filtered, key=lambda e: e["timestamp"])
+    
+    return ImageMeta(**latest_entry)
+
+# Endpoint for watermarked image used for new control panel in RIDE
+@app.get("/api/images/watermarked/{camera_id}")
+async def get_watermarked_image(camera_id: str):
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=24)
+    # db_pool = await init_db()
+    # index_db = await load_index_from_db(db_pool)
+    filtered = [
+        # entry for entry in index
+        entry for entry in index_db
+        if entry["camera_id"] == camera_id and entry["timestamp"] >= cutoff
+    ]
+    logger.info(f"filtered db: {filtered}")
     if not filtered:
         raise HTTPException(status_code=404, detail="No image found in the last 24 hours for this camera")
 

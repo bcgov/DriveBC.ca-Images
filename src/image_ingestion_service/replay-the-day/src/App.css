@@ -39,8 +39,14 @@
 
 .App {
   display: flex;
-  justify-content: center;  /* center horizontally */
-  align-items: center;      /* center vertically */
-  min-height: 100vh;        /* full viewport height */
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;        
+}
+
+
+.replay-frame img {
+  width: 900px;
+  height: auto;
 }
 
