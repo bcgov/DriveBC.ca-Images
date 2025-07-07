@@ -3,7 +3,7 @@ import json
 import logging
 from math import floor
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 from click import wrap_text
 from fastapi import FastAPI, HTTPException, logger
@@ -16,9 +16,13 @@ from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from .db import get_all_from_db
+from .db import get_all_from_db, db_pool, init_db
 from timezonefinder import TimezoneFinder
 from zoneinfo import ZoneInfo
+import asyncpg
+from contextlib import asynccontextmanager
+from dateutil import parser
+
 
 tf = TimezoneFinder()
 
@@ -49,7 +53,27 @@ s3_client = boto3.client(
     endpoint_url=S3_ENDPOINT_URL
 )
 
-app = FastAPI()
+index = []  # image index in memory
+
+index_db = [] # image index loaded from DB
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Initialize database
+    db_pool = await init_db()
+
+    # Load image index
+    index_db = await load_index_from_db(db_pool)
+
+    # Start background tasks
+    asyncio.create_task(consume_images())
+
+    # Yield control back to FastAPI
+    yield
+
+
+app = FastAPI(lifespan=lifespan)
+
 
 # CORS middleware for local development
 app.add_middleware(
@@ -64,12 +88,42 @@ app.add_middleware(
 # Static files for watermarked images on PVC
 app.mount("/images/watermarked", StaticFiles(directory="/app/app/images/webcams/watermarked"), name="watermarked")
 
-index = []  # Redis or DB indexes
+
+
 
 class ImageMeta(BaseModel):
     camera_id: str
     timestamp: datetime
     path: str
+
+
+
+async def load_index_from_db(db_pool: any):
+    print("Database connection pool initialized. Fetching records...")
+    global index_db  # if `index` is a global list
+    async with db_pool.acquire() as conn:
+        records = await conn.fetch("""
+            SELECT camera_id, timestamp, s3_path, pvc_path, watermarked_path
+            FROM image_index
+            ORDER BY timestamp
+        """)
+        
+        # Build the index list from DB rows
+        index_db = [
+            {
+                "camera_id": record["camera_id"],
+                # "timestamp": record["timestamp"].isoformat(),
+                "timestamp": record["timestamp"],
+                "s3_path": record["s3_path"],
+                "pvc_path": record["pvc_path"],
+                "watermarked_path": record["watermarked_path"],
+                "path": record["s3_path"]  # if you want to keep this alias
+            }
+            for record in records
+        ]
+        print(f"Loaded {len(index_db)} records from the database index.")
+        return index_db
+
 
 # Consumer function to process images from RabbitMQ
 async def consume_images():
@@ -88,18 +142,21 @@ async def consume_images():
         "image-queue-image-archiver",
         durable=True,
         exclusive=False,
-        auto_delete=False
+        auto_delete=False,
+        arguments={"x-max-length-bytes": 419430400}
     )
     print(f"Fanout exchange '{exchange.name}' created or already exists.")
 
     exchange = await channel.get_exchange("test.fanout_image_test")
     await queue.bind(exchange)
 
+    db_pool = await init_db()
+
     async with queue.iterator() as queue_iter:
         async for message in queue_iter:
             async with message.process():
                 filename = message.headers.get("filename", "unknown.jpg")
-                await handle_image_message(filename, message.body)
+                await handle_image_message(db_pool, filename, message.body)
 
 def process_camera_rows(rows):
     if not rows:
@@ -214,7 +271,7 @@ def watermark_image(camera_id: str, image_data: bytes, tz: str = 'America/Vancou
         logger.error(f"Error processing image from camer: {camera_id} - {e}")
 
  
-async def handle_image_message(filename: str, body: bytes):
+async def handle_image_message(db_pool: any, filename: str, body: bytes):
     # Metadata: camera_id + timestamp
     camera_id = filename.split("_")[0].split('.')[0]
     timestamp = datetime.utcnow()
@@ -253,36 +310,44 @@ async def handle_image_message(filename: str, body: bytes):
         "path": s3_path
     })
 
+    # Insert record into DB
+    print(f"Saving image index for camera {camera_id} at {timestamp} to DB")
+    # db_pool = await asyncpg.create_pool(dsn=os.getenv("POSTGRES_DSN"))
+    async with db_pool.acquire() as conn:
+        await conn.execute("""
+            INSERT INTO image_index (camera_id, timestamp, s3_path, pvc_path, watermarked_path)
+            VALUES ($1, $2, $3, $4, $5)
+        """, camera_id, timestamp, s3_path, pvc_path, watermarked_path)
+
+    logger.info(f"Image index for camera {camera_id} at {timestamp} saved to DB")
+
 # Endpoint for replay the day
 @app.get("/replay/{camera_id}")
 async def get_replay(camera_id: str):
-    cutoff = datetime.utcnow() - timedelta(hours=24)
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=24)
+
     results = [
-        ImageMeta(**entry) for entry in index
-        if entry["camera_id"] == camera_id and datetime.fromisoformat(entry["timestamp"]) >= cutoff
+        ImageMeta(**entry) for entry in index_db
+        if entry["camera_id"] == camera_id and entry["timestamp"] >= cutoff
     ]
+
     return results
 
 # Endpoint for original image used for new control panel in RIDE
 @app.get("/images/{camera_id}")
 async def get_original_image(camera_id: str):
-    cutoff = datetime.utcnow() - timedelta(hours=24)
-    
-    # Filter images for camera_id within the last 24 hours
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=24)
+
     filtered = [
-        entry for entry in index
-        if entry["camera_id"] == camera_id and datetime.fromisoformat(entry["timestamp"]) >= cutoff
+        # entry for entry in index
+        entry for entry in index_db
+        if entry["camera_id"] == camera_id and entry["timestamp"] >= cutoff
     ]
 
     if not filtered:
         raise HTTPException(status_code=404, detail="No image found in the last 24 hours for this camera")
 
     # Find the latest one
-    latest_entry = max(filtered, key=lambda e: datetime.fromisoformat(e["timestamp"]))
+    latest_entry = max(filtered, key=lambda e: e["timestamp"])
     
     return ImageMeta(**latest_entry)
-
-# Startup task
-@app.on_event("startup")
-async def startup():
-    asyncio.create_task(consume_images())

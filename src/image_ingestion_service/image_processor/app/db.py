@@ -1,6 +1,9 @@
 import os
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import URL
+import asyncpg
+
+db_pool = None
 
 # Connection settings
 DB_SERVER = os.getenv("DB_SERVER", "sql-server-db")
@@ -34,3 +37,8 @@ def get_all_from_db():
         except Exception as e:
             print(f"Failed to connect to the database: {e}")
                  
+
+async def init_db():
+    global db_pool
+    db_pool = await asyncpg.create_pool(dsn=os.getenv("POSTGRES_DSN"))
+    return db_pool

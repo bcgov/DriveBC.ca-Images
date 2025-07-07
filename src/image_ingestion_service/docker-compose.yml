@@ -39,6 +39,7 @@ services:
       - DB_NAME=${DB_NAME}
       - DB_USER=${DB_USER}
       - DB_PASSWORD=${DB_PASSWORD}
+      - POSTGRES_DSN=${POSTGRES_DSN}  # Optional, if using Postgres for metadata storage
     depends_on:
       # - rabbitmq
       - minio
@@ -64,9 +65,28 @@ services:
     ports:
       - "6379:6379"
 
+  postgres-image-ingestion:
+    image: postgres:15
+    container_name: postgres-image-ingestion
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: mydatabase
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
 volumes:
   minio-data:
   pvc-data:
+  postgres_data:
 
   
 

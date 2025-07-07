@@ -9,3 +9,4 @@ pillow
 timezonefinder
 sqlalchemy
 pyodbc
+asyncpg
