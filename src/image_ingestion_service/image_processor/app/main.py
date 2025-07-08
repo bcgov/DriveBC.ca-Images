@@ -114,7 +114,7 @@ class ImageMeta(BaseModel):
 
 
 async def load_index_from_db(db_pool: any):
-    logger.info("Database connection pool initialized. Fetching records...")
+    # logger.info("Database connection pool initialized. Fetching records...")
     async with db_pool.acquire() as conn:
         records = await conn.fetch("""
             SELECT camera_id, timestamp, s3_path, pvc_path, watermarked_path
@@ -135,7 +135,7 @@ async def load_index_from_db(db_pool: any):
             }
             for record in records
         ]
-        logger.info(f"Loaded {len(index_db)} records from the database index.")
+        # logger.info(f"Loaded {len(index_db)} records from the database index.")
         return index_db
 
 
@@ -297,10 +297,11 @@ async def handle_image_message(db_pool: any, filename: str, body: bytes):
     s3_path = key
     logger.info(f"Origianal image saved to S3 at {key}")
 
-    # Save original image to PVC
-    save_dir = os.path.join(PVC_ORIGINAL_PATH, camera_id)
+    # Save original image to PVC, can be overwritten each time
+    save_dir = os.path.join(PVC_ORIGINAL_PATH)
     os.makedirs(save_dir, exist_ok=True)
-    filename = f"{milliseconds}.jpg"
+    filename = f"{camera_id}.jpg"
+
     filepath = os.path.join(save_dir, filename)
     async with aiofiles.open(filepath, "wb") as f:
         await f.write(body)
@@ -308,7 +309,7 @@ async def handle_image_message(db_pool: any, filename: str, body: bytes):
     logger.info(f"Original image saved to PVC at {filepath}")
 
     # Save watermarked image
-    logger.info(f"Watermarking image for camera {camera_id} at {timestamp}")
+    # logger.info(f"Watermarking image for camera {camera_id} at {timestamp}")
     watermark_image(camera_id, body, milliseconds)
     watermarked_path = f"{PVC_WATERMARKED_PATH}/{camera_id}/{milliseconds}.jpg"
 
@@ -329,7 +330,7 @@ async def handle_image_message(db_pool: any, filename: str, body: bytes):
             VALUES ($1, $2, $3, $4, $5)
         """, camera_id, timestamp, s3_path, pvc_path, watermarked_path)
 
-    logger.info(f"Image index for camera {camera_id} at {timestamp} saved to DB")
+    # logger.info(f"Image index for camera {camera_id} at {timestamp} saved to DB")
 
 # Endpoint for replay the day
 @app.get("/api/replay/{camera_id}")
