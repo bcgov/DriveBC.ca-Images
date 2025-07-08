@@ -175,6 +175,7 @@ async def consume_images(db_pool: any):
 
     except asyncio.CancelledError:
         logger.info("Image consumer task was cancelled.")
+        raise
     except ChannelInvalidStateError:
         logger.warning("AMQP channel closed during shutdown. Skipping further cleanup.")
     except Exception as e:
