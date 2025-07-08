@@ -201,7 +201,7 @@ def get_timezone(webcam):
     tz_name = tf.timezone_at(lat=lat, lng=lon)
     return tz_name if tz_name else 'America/Vancouver'  # Fallback to PST if no timezone found
 
-def watermark_image(camera_id: str, image_data: bytes, milliseconds: int, tz: str = 'America/Vancouver'):
+def watermark_image(camera_id: str, image_data: bytes, milliseconds: int):
     # Load camera data from the database
     rows = get_all_from_db()
     db_data = process_camera_rows(rows)
