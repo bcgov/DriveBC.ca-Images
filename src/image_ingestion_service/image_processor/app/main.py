@@ -23,6 +23,7 @@ from zoneinfo import ZoneInfo
 import asyncpg
 from contextlib import asynccontextmanager
 from dateutil import parser
+from aiormq.exceptions import ChannelInvalidStateError
 
 
 tf = TimezoneFinder()
@@ -138,39 +139,60 @@ async def load_index_from_db(db_pool: any):
         # logger.info(f"Loaded {len(index_db)} records from the database index.")
         return index_db
 
-
-# Consumer function to process images from RabbitMQ
 async def consume_images(db_pool: any):
-    rb_url = os.getenv("RABBITMQ_URL")
-    if not rb_url:
-        raise ValueError("RABBITMQ_URL environment variable is not set")
+    connection = None
+    channel = None
 
-    connection = await aio_pika.connect_robust(rb_url)
-    channel = await connection.channel()
-    exchange = await channel.declare_exchange(
-                name="test.fanout_image_test",
-                type=aio_pika.ExchangeType.FANOUT,
-                durable=True
-            )
-    queue = await channel.declare_queue(
-        "image-queue-image-archiver",
-        durable=True,
-        exclusive=False,
-        auto_delete=False,
-        arguments={"x-max-length-bytes": 419430400}
-    )
-    logger.info(f"Fanout exchange '{exchange.name}' created or already exists.")
+    try:
+        rb_url = os.getenv("RABBITMQ_URL")
+        if not rb_url:
+            raise ValueError("RABBITMQ_URL environment variable is not set")
 
-    exchange = await channel.get_exchange("test.fanout_image_test")
-    await queue.bind(exchange)
+        connection = await aio_pika.connect_robust(rb_url)
+        channel = await connection.channel()
 
-    # db_pool = await init_db()
+        exchange = await channel.declare_exchange(
+            name="test.fanout_image_test",
+            type=aio_pika.ExchangeType.FANOUT,
+            durable=True
+        )
 
-    async with queue.iterator() as queue_iter:
-        async for message in queue_iter:
-            async with message.process():
-                filename = message.headers.get("filename", "unknown.jpg")
-                await handle_image_message(db_pool, filename, message.body)
+        queue = await channel.declare_queue(
+            "image-queue-image-archiver",
+            durable=True,
+            exclusive=False,
+            auto_delete=False,
+            arguments={"x-max-length-bytes": 419430400}
+        )
+
+        await queue.bind(exchange)
+
+        async with queue.iterator() as queue_iter:
+            async for message in queue_iter:
+                async with message.process():
+                    filename = message.headers.get("filename", "unknown.jpg")
+                    await handle_image_message(db_pool, filename, message.body)
+
+    except asyncio.CancelledError:
+        logger.info("Image consumer task was cancelled.")
+        raise
+    except ChannelInvalidStateError:
+        logger.warning("AMQP channel closed during shutdown. Skipping further cleanup.")
+    except Exception as e:
+        logger.exception("Unhandled error in consume_images")
+    finally:
+        logger.info("Cleaning up RabbitMQ resources...")
+        try:
+            if channel and not channel.is_closed:
+                await channel.close()
+        except Exception as e:
+            logger.warning(f"Error closing channel: {e}")
+
+        try:
+            if connection and not connection.is_closed:
+                await connection.close()
+        except Exception as e:
+            logger.warning(f"Error closing connection: {e}")
 
 def process_camera_rows(rows):
     if not rows:
@@ -355,17 +377,11 @@ async def get_original_image(camera_id: str, request: Request):
     db_pool = request.app.state.db_pool
     index_db = await load_index_from_db(db_pool)
 
-    # print("bruce test: all index_db entries")
-    # print(json.dumps(index_db, indent=2, default=str))
-
     filtered = [
         # entry for entry in index
         entry for entry in index_db
         if entry["camera_id"] == camera_id and entry["timestamp"] >= cutoff
     ]
-
-    # print("bruce test: filtered out index_db entries")
-    # print(json.dumps(filtered, indent=2, default=str))
 
     if not filtered:
         return []
