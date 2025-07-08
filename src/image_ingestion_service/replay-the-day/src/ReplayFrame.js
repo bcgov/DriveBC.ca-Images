@@ -94,25 +94,13 @@ const ReplayTheDay = ({ cameraId, apiUrl, s3BucketUrl, pvcUrl, replayTheDay }) =
               alt={`frame ${currentIndex + 1}`}
               style={{
                 display: "block",
-                width: "380px",
+                width: "420px",
                 height: "auto",
                 maxHeight: "420px",
                 borderRadius: "0.5rem",
                 boxShadow: "0 2px 8px rgba(0,0,0,0.1)"
               }}
             />
-          <div style={{
-            position: "absolute",
-            bottom: "8px",
-            right: "8px",
-            background: "rgba(0, 0, 0, 0.6)",
-            color: "#fff",
-            padding: "2px 6px",
-            borderRadius: "4px",
-            fontSize: "0.85rem"
-          }}>
-            {new Date(currentImage.timestamp).toLocaleString()}
-          </div>
         </div>
       )}
 

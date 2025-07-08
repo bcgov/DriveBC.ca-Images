@@ -4,6 +4,7 @@ import axios from "axios";
 const originalImageUrl = "http://localhost:8080/api/images";
 const s3BucketUrl = "http://localhost:9000/test-s3-bucket";
 const watermarkedPvcUrl = "http://localhost:8080/static/images/watermarked";
+const originalPvcUrl = "http://localhost:8080/static/images/originals";
 
 function DbcImage({ cameraId }) {
   const [imageMeta, setImageMeta] = useState(null);
@@ -46,26 +47,24 @@ function DbcImage({ cameraId }) {
 
   return (
     <div style={{ padding: "1rem" }}>
+      
+
       <h2 style={{ fontWeight: "bold", fontSize: "1.25rem", marginBottom: "0.5rem" }}>
-        Latest Original Image, from S3 bucket
-      </h2>
-      {/* <h3>{`${s3BucketUrl}/${imageMeta.path}`}</h3> */}
-
-    <img 
-        src={`${s3BucketUrl}/${imageMeta.path}`} 
-        alt={`Original from camera ${cameraId}`} 
-        style={{ borderRadius: "0.5rem", boxShadow: "0 2px 8px rgba(0,0,0,0.1)", maxWidth: "50%" }}
-    />
-
-    <h2 style={{ fontWeight: "bold", fontSize: "1.25rem", marginBottom: "0.5rem" }}>
         Latest Watermarked Image, from PVC
-    </h2>
-        
-    {/* <h3>{`${watermarkedPvcUrl}/${cameraId}/${imageMeta.path.split("/").pop()}`}</h3> */}
+      </h2>
     <img 
         src={`${watermarkedPvcUrl}/${cameraId}/${imageMeta.path.split("/").pop()}`}
         alt={`Watermarked from camera ${cameraId}`} 
-        style={{ borderRadius: "0.5rem", boxShadow: "0 2px 8px rgba(0,0,0,0.1)", maxWidth: "50%" }}
+        style={{ borderRadius: "0.5rem", boxShadow: "0 2px 8px rgba(0,0,0,0.1)", maxWidth: "70%" }}
+    />
+
+      <h2 style={{ fontWeight: "bold", fontSize: "1.25rem", marginBottom: "0.5rem" }}>
+        Latest Original Image, from PVC
+      </h2>
+    <img 
+        src={`${originalPvcUrl}/${cameraId}.jpg`} 
+        alt={`Original from camera ${cameraId}`} 
+        style={{ borderRadius: "0.5rem", boxShadow: "0 2px 8px rgba(0,0,0,0.1)", maxWidth: "70%" }}
     />
 
         <p style={{ fontSize: "0.875rem", color: "#555", marginTop: "0.25rem" }}>
