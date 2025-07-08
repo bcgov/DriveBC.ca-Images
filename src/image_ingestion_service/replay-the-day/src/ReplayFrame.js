@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from "react";
 import axios from "axios";
 
-const ReplayTheDay = ({ cameraId, apiUrl, s3BucketUrl }) => {
+const ReplayTheDay = ({ cameraId, apiUrl, s3BucketUrl, pvcUrl, replayTheDay }) => {
   const [images, setImages] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [playing, setPlaying] = useState(false);
@@ -54,7 +54,9 @@ const ReplayTheDay = ({ cameraId, apiUrl, s3BucketUrl }) => {
         padding: "0.5rem"
       }}>
         <div>
-          <span style={{ marginRight: "0.5rem" }}>Replay the day</span>
+        <span style={{ marginRight: "0.5rem" }}>
+          {replayTheDay ? "(PVC watermarked) Replay the day" : "(S3 original) Timelapse"} for Camera {cameraId}
+        </span>
         </div>
       </div>
 
@@ -63,10 +65,34 @@ const ReplayTheDay = ({ cameraId, apiUrl, s3BucketUrl }) => {
         <div style={{ 
             position: "relative", 
             display: "inline-block"}}>
-          <img
-            src={`${s3BucketUrl}/${currentImage.path}`}
-            alt={`frame ${currentIndex + 1}`}
-            style={{
+            <img
+              src={
+                replayTheDay
+                  ? (() => {
+                    const fullPath = currentImage.path;
+                    const parts = fullPath.split("/");
+                    let baseUrl = "";
+                      if (s3BucketUrl) {
+                        baseUrl = s3BucketUrl;
+                        console.log(`Using S3 bucket URL: ${baseUrl}`); // Debug log
+                        // console.log(`Base URL: ${baseUrl}, Filename: ${filename}`);
+                        return `${baseUrl}/${fullPath}`;
+                      }
+                      else if(pvcUrl) {
+                        baseUrl = pvcUrl;
+                        console.log(`Using PVC URL: ${baseUrl}`); // Debug log
+                        const simplifiedPath = `${parts[0]}/${parts[parts.length - 1]}`;
+                        console.log(simplifiedPath); // Output: "343/1751992248460.jpg" 
+                        // console.log(`Base URL: ${baseUrl}, Filename: ${filename}`);
+                        return `${baseUrl}/watermarked/${simplifiedPath}`;
+                      }
+                      
+                    })()
+                  : `${s3BucketUrl}/${currentImage.path}`
+              }
+              className="replay-frame"
+              alt={`frame ${currentIndex + 1}`}
+              style={{
                 display: "block",
                 width: "380px",
                 height: "auto",
@@ -74,7 +100,7 @@ const ReplayTheDay = ({ cameraId, apiUrl, s3BucketUrl }) => {
                 borderRadius: "0.5rem",
                 boxShadow: "0 2px 8px rgba(0,0,0,0.1)"
               }}
-          />
+            />
           <div style={{
             position: "absolute",
             bottom: "8px",
