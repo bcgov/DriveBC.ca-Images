@@ -3,7 +3,7 @@
 
 services:
   image-receiver:
-    container_name: image-receiver-drivebc-image
+    container_name: image-receiver
     build: ./image_receiver
     ports:
       - "8000:8000"
@@ -23,7 +23,7 @@ services:
       - DB_PASSWORD=${DB_PASSWORD}
 
   image-processor:
-    container_name: image-processor-drivebc-image
+    container_name: image-processor
     build:
       context: ./image_processor
     ports:
@@ -46,7 +46,35 @@ services:
       - minio
       - redis
     volumes:
-      - pvc-data:/app/data  # For PVC style storage
+      # - pvc-data:/app/data  # For PVC style storage
+      - pvc-data:/app/app/images/webcams
+  
+  image-provider:
+    container_name: image-provider
+    build:
+      context: ./image_provider
+    ports:
+      - "8081:8081"  # ReplayTheDay will hit this API
+    environment:
+      - S3_BUCKET=${S3_BUCKET}
+      - S3_REGION=${S3_REGION}
+      - S3_ACCESS_KEY=${S3_ACCESS_KEY}
+      - S3_SECRET_KEY=${S3_SECRET_KEY}
+      - S3_ENDPOINT_URL=${S3_ENDPOINT_URL}  # Optional, if using MinIO or custom S3-compatible storage
+      - RABBITMQ_URL=${RABBITMQ_URL}
+      - REDIS_URL=${REDIS_URL}
+      - DB_SERVER=${DB_SERVER}
+      - DB_NAME=${DB_NAME}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - POSTGRES_DSN=${POSTGRES_DSN}  # Optional, if using Postgres for metadata storage
+    depends_on:
+      # - rabbitmq
+      - minio
+      - redis
+    volumes:
+      # - pvc-data:/app/data  # For PVC style storage
+      - pvc-data:/app/app/images/webcams
 
   minio:
     image: minio/minio:latest

@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 
-const originalImageUrl = "http://localhost:8080/api/images";
-const s3BucketUrl = "http://localhost:9000/test-s3-bucket";
-const watermarkedPvcUrl = "http://localhost:8080/static/images/watermarked";
-const originalPvcUrl = "http://localhost:8080/static/images/originals";
+const originalImageUrl = "http://localhost:8081/api/images";
+// const s3BucketUrl = "http://localhost:9000/test-s3-bucket";
+const watermarkedPvcUrl = "http://localhost:8081/static/images/watermarked";
+const originalPvcUrl = "http://localhost:8081/static/images/originals";
 
 function DbcImage({ cameraId }) {
   const [imageMeta, setImageMeta] = useState(null);
@@ -52,11 +52,28 @@ function DbcImage({ cameraId }) {
       <h2 style={{ fontWeight: "bold", fontSize: "1.25rem", marginBottom: "0.5rem" }}>
         Latest Watermarked Image, from PVC
       </h2>
-    <img 
+      {/* <h3>{`${imageMeta.path}`}</h3> */}
+      {/* <h3>{`${watermarkedPvcUrl}/${cameraId}/${imageMeta.path.split("/").pop()}`}</h3> */}
+    {/* <img 
         src={`${watermarkedPvcUrl}/${cameraId}/${imageMeta.path.split("/").pop()}`}
         alt={`Watermarked from camera ${cameraId}`} 
         style={{ borderRadius: "0.5rem", boxShadow: "0 2px 8px rgba(0,0,0,0.1)", maxWidth: "70%" }}
-    />
+    /> */}
+
+        {imageMeta?.path ? (
+          <img 
+            src={`${watermarkedPvcUrl}/${cameraId}/${imageMeta.path.split("/").pop()}`}
+            alt={`Watermarked from camera ${cameraId}`} 
+            style={{ 
+              borderRadius: "0.5rem", 
+              boxShadow: "0 2px 8px rgba(0,0,0,0.1)", 
+              maxWidth: "70%" 
+            }}
+          />
+        ) : (
+          <div>No image watermarked</div>
+        )}
+
 
       <h2 style={{ fontWeight: "bold", fontSize: "1.25rem", marginBottom: "0.5rem" }}>
         Latest Original Image, from PVC

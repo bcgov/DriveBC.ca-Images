@@ -43,13 +43,13 @@ function App() {
         <ReplayFrame
           replayTheDay={true}
           cameraId={cameraId}
-          apiUrl="http://localhost:8080/api/replay"
-          pvcUrl="http://localhost:8080/static/images"
+          apiUrl="http://localhost:8081/api/replay"
+          pvcUrl="http://localhost:8081/static/images"
         />
         <ReplayFrame
           replayTheDay={false}
           cameraId={cameraId}
-          apiUrl="http://localhost:8080/api/replay"
+          apiUrl="http://localhost:8081/api/replay"
           s3BucketUrl="http://localhost:9000/test-s3-bucket"
         />
       </div>

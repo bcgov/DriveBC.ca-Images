@@ -78,7 +78,7 @@ async def lifespan(app: FastAPI):
     index_db = await load_index_from_db(db_pool)
 
     # Start background tasks
-    asyncio.create_task(consume_images(db_pool))
+    # asyncio.create_task(consume_images(db_pool))
 
     ready_event.set()
 
@@ -102,6 +102,9 @@ app.add_middleware(
 # Static files for watermarked images on PVC
 # app.mount("/api/images", StaticFiles(directory="/app/app/images/webcams"), name="images")
 app.mount("/static/images", StaticFiles(directory="/app/app/images/webcams"), name="static-images")
+
+
+
 
 
 
@@ -139,60 +142,60 @@ async def load_index_from_db(db_pool: any):
         # logger.info(f"Loaded {len(index_db)} records from the database index.")
         return index_db
 
-async def consume_images(db_pool: any):
-    connection = None
-    channel = None
+# async def consume_images(db_pool: any):
+#     connection = None
+#     channel = None
 
-    try:
-        rb_url = os.getenv("RABBITMQ_URL")
-        if not rb_url:
-            raise ValueError("RABBITMQ_URL environment variable is not set")
+#     try:
+#         rb_url = os.getenv("RABBITMQ_URL")
+#         if not rb_url:
+#             raise ValueError("RABBITMQ_URL environment variable is not set")
 
-        connection = await aio_pika.connect_robust(rb_url)
-        channel = await connection.channel()
+#         connection = await aio_pika.connect_robust(rb_url)
+#         channel = await connection.channel()
 
-        exchange = await channel.declare_exchange(
-            name="test.fanout_image_test",
-            type=aio_pika.ExchangeType.FANOUT,
-            durable=True
-        )
+#         exchange = await channel.declare_exchange(
+#             name="test.fanout_image_test",
+#             type=aio_pika.ExchangeType.FANOUT,
+#             durable=True
+#         )
 
-        queue = await channel.declare_queue(
-            "image-queue-image-archiver",
-            durable=True,
-            exclusive=False,
-            auto_delete=False,
-            arguments={"x-max-length-bytes": 419430400}
-        )
+#         queue = await channel.declare_queue(
+#             "image-queue-image-archiver",
+#             durable=True,
+#             exclusive=False,
+#             auto_delete=False,
+#             arguments={"x-max-length-bytes": 419430400}
+#         )
 
-        await queue.bind(exchange)
+#         await queue.bind(exchange)
 
-        async with queue.iterator() as queue_iter:
-            async for message in queue_iter:
-                async with message.process():
-                    filename = message.headers.get("filename", "unknown.jpg")
-                    await handle_image_message(db_pool, filename, message.body)
+#         async with queue.iterator() as queue_iter:
+#             async for message in queue_iter:
+#                 async with message.process():
+#                     filename = message.headers.get("filename", "unknown.jpg")
+#                     await handle_image_message(db_pool, filename, message.body)
 
-    except asyncio.CancelledError:
-        logger.info("Image consumer task was cancelled.")
-        raise
-    except ChannelInvalidStateError:
-        logger.warning("AMQP channel closed during shutdown. Skipping further cleanup.")
-    except Exception as e:
-        logger.exception("Unhandled error in consume_images")
-    finally:
-        logger.info("Cleaning up RabbitMQ resources...")
-        try:
-            if channel and not channel.is_closed:
-                await channel.close()
-        except Exception as e:
-            logger.warning(f"Error closing channel: {e}")
+#     except asyncio.CancelledError:
+#         logger.info("Image consumer task was cancelled.")
+#         raise
+#     except ChannelInvalidStateError:
+#         logger.warning("AMQP channel closed during shutdown. Skipping further cleanup.")
+#     except Exception as e:
+#         logger.exception("Unhandled error in consume_images")
+#     finally:
+#         logger.info("Cleaning up RabbitMQ resources...")
+#         try:
+#             if channel and not channel.is_closed:
+#                 await channel.close()
+#         except Exception as e:
+#             logger.warning(f"Error closing channel: {e}")
 
-        try:
-            if connection and not connection.is_closed:
-                await connection.close()
-        except Exception as e:
-            logger.warning(f"Error closing connection: {e}")
+#         try:
+#             if connection and not connection.is_closed:
+#                 await connection.close()
+#         except Exception as e:
+#             logger.warning(f"Error closing connection: {e}")
 
 def process_camera_rows(rows):
     if not rows:
@@ -354,39 +357,39 @@ async def handle_image_message(db_pool: any, filename: str, body: bytes):
 
     # logger.info(f"Image index for camera {camera_id} at {timestamp} saved to DB")
 
-# # Endpoint for replay the day
-# @app.get("/api/replay/{camera_id}")
-# async def get_replay(camera_id: str, request: Request):
-#     await ready_event.wait()
-#     cutoff = datetime.now(timezone.utc) - timedelta(hours=24)
-#     db_pool = request.app.state.db_pool
-#     index_db = await load_index_from_db(db_pool)
+# Endpoint for replay the day
+@app.get("/api/replay/{camera_id}")
+async def get_replay(camera_id: str, request: Request):
+    await ready_event.wait()
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=24)
+    db_pool = request.app.state.db_pool
+    index_db = await load_index_from_db(db_pool)
 
-#     results = [
-#         ImageMeta(**entry) for entry in index_db
-#         if entry["camera_id"] == camera_id and entry["timestamp"] >= cutoff
-#     ]
+    results = [
+        ImageMeta(**entry) for entry in index_db
+        if entry["camera_id"] == camera_id and entry["timestamp"] >= cutoff
+    ]
 
-#     return results
+    return results
 
-# # Endpoint for original image used for new control panel in RIDE
-# @app.get("/api/images/{camera_id}")
-# async def get_original_image(camera_id: str, request: Request):
-#     await ready_event.wait()
-#     cutoff = datetime.now(timezone.utc) - timedelta(hours=24)
-#     db_pool = request.app.state.db_pool
-#     index_db = await load_index_from_db(db_pool)
+# Endpoint for original image used for new control panel in RIDE
+@app.get("/api/images/{camera_id}")
+async def get_original_image(camera_id: str, request: Request):
+    await ready_event.wait()
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=24)
+    db_pool = request.app.state.db_pool
+    index_db = await load_index_from_db(db_pool)
 
-#     filtered = [
-#         # entry for entry in index
-#         entry for entry in index_db
-#         if entry["camera_id"] == camera_id and entry["timestamp"] >= cutoff
-#     ]
+    filtered = [
+        # entry for entry in index
+        entry for entry in index_db
+        if entry["camera_id"] == camera_id and entry["timestamp"] >= cutoff
+    ]
 
-#     if not filtered:
-#         return []
+    if not filtered:
+        return []
 
-#     # Find the latest one
-#     latest_entry = max(filtered, key=lambda e: e["timestamp"])
+    # Find the latest one
+    latest_entry = max(filtered, key=lambda e: e["timestamp"])
     
-#     return ImageMeta(**latest_entry)
+    return ImageMeta(**latest_entry)
