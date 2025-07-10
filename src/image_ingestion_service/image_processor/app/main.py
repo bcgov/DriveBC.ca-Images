@@ -77,8 +77,8 @@ async def lifespan(app: FastAPI):
     # Load image index
     index_db = await load_index_from_db(db_pool)
 
-    # Start background tasks
-    asyncio.create_task(consume_images(db_pool))
+    # Save background task to prevent GC
+    app.state.consume_images_task = asyncio.create_task(consume_images(db_pool))
 
     ready_event.set()
 
@@ -220,7 +220,7 @@ def get_timezone(webcam):
     tz_name = tf.timezone_at(lat=lat, lng=lon)
     return tz_name if tz_name else 'America/Vancouver'  # Fallback to PST if no timezone found
 
-def watermark(camera_id: str, image_data: bytes, milliseconds: int):
+def watermark(camera_id: str, image_data: bytes):
     # Load camera data from the database
     rows = get_all_from_db()
     db_data = process_camera_rows(rows)
@@ -282,7 +282,7 @@ def watermark(camera_id: str, image_data: bytes, milliseconds: int):
     except Exception as e:
         logger.error(f"Error processing image from camer: {camera_id} - {e}")
 
-def save_original_image_to_pvc(camera_id: str, image_bytes: bytes, milliseconds: int, timestamp: datetime):
+def save_original_image_to_pvc(camera_id: str, image_bytes: bytes):
     # Save original image to PVC, can be overwritten each time
     save_dir = os.path.join(PVC_ORIGINAL_PATH)
     os.makedirs(save_dir, exist_ok=True)
@@ -299,7 +299,7 @@ def save_original_image_to_pvc(camera_id: str, image_bytes: bytes, milliseconds:
     logger.info(f"Original image saved to PVC at {filepath}")
     return original_pvc_path
 
-def save_original_image_to_s3(camera_id: str, image_bytes: bytes, milliseconds: int, timestamp: datetime):
+def save_original_image_to_s3(camera_id: str, image_bytes: bytes):
     # Save original image to s3
     ext = "jpg"
     key = f"originals/{camera_id}.{ext}"
@@ -351,10 +351,10 @@ async def handle_image_message(db_pool: any, filename: str, body: bytes):
     timestamp = datetime.utcnow()
     milliseconds = int(timestamp.timestamp() * 1000)
 
-    original_pvc_path = save_original_image_to_pvc(camera_id, body, milliseconds, timestamp)
-    original_s3_path = save_original_image_to_s3(camera_id, body, milliseconds, timestamp)
+    original_pvc_path = save_original_image_to_pvc(camera_id, body)
+    original_s3_path = save_original_image_to_s3(camera_id, body)
 
-    image_bytes = watermark(camera_id, body, milliseconds)
+    image_bytes = watermark(camera_id, body)
 
     watermarked_pvc_path = save_watermarked_image_to_pvc(camera_id, image_bytes, milliseconds)
     watermarked_s3_path = save_watermarked_image_to_s3(camera_id, image_bytes, milliseconds)
