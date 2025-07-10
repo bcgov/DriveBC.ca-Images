@@ -65,76 +65,20 @@ const ReplayFrame = ({ cameraId, apiUrl, s3BucketUrl, pvcUrl, replayTheDay }) =>
         <div style={{ 
             position: "relative", 
             display: "inline-block"}}>
-            {/* <img
-              src={
-                replayTheDay
-                  ? (() => {
-                    const fullPath_s3 = currentImage.watermarked_s3_path;
-                    const fullPath_pvc = currentImage.watermarked_pvc_path;
-                    // const parts = fullPath.split("/");
-                    let baseUrl = "";
-                      if (s3BucketUrl) {
-                        baseUrl = s3BucketUrl;
-                        console.log(`Using S3 bucket URL: ${baseUrl}`); // Debug log
-                        // console.log(`Base URL: ${baseUrl}, Filename: ${filename}`);
-                        return `${baseUrl}/${fullPath_s3}`;
-                      }
-                      else if(pvcUrl) {
-                        baseUrl = pvcUrl;
-                        console.log(`Using PVC URL: ${baseUrl}`); // Debug log
-                        const simplifiedPath = fullPath_pvc;
-
-                        const fullPath = "/app/app/images/webcams/watermarked/343/1752173106834.jpg";
-                        const relativePath = "watermarked" + simplifiedPath.split("watermarked")[1];
-                        console.log(relativePath);  // watermarked/343/1752173106834.jpg
-
-
-                        console.log(simplifiedPath); // Output: "343/1751992248460.jpg" 
-                        // console.log(`Base URL: ${baseUrl}, Filename: ${filename}`);
-                        return `${baseUrl}/${relativePath}`;
-                      }
-                      
-                    })()
-                  : `${s3BucketUrl}/${currentImage.path}`
-              }
-              className="replay-frame"
-              alt={`frame ${currentIndex + 1}`}
-              style={{
-                display: "block",
-                width: "420px",
-                height: "auto",
-                maxHeight: "420px",
-                borderRadius: "0.5rem",
-                boxShadow: "0 2px 8px rgba(0,0,0,0.1)"
-              }}
-            /> */}
-
             <img
               src={
                 replayTheDay
                   ? (() => {
-                    
                     const fullPath_pvc = currentImage.watermarked_pvc_path;
-                    // const parts = fullPath.split("/");
-                    let baseUrl = "";
-                    baseUrl = pvcUrl;
-                    console.log(`Using PVC URL: ${baseUrl}`); // Debug log
+                    const baseUrl = pvcUrl;
                     const simplifiedPath = fullPath_pvc;
-
-                    const fullPath = "/app/app/images/webcams/watermarked/343/1752173106834.jpg";
                     const relativePath = "watermarked" + simplifiedPath.split("watermarked")[1];
-                    console.log(relativePath);  // watermarked/343/1752173106834.jpg
-                    console.log(simplifiedPath); // Output: "343/1751992248460.jpg" 
-                    // console.log(`Base URL: ${baseUrl}, Filename: ${filename}`);
                     return `${baseUrl}/${relativePath}`;
                       
                     })()
                   : (() => {
-                        let baseUrl = "";
                         const fullPath_s3 = currentImage.watermarked_s3_path;
-                        baseUrl = s3BucketUrl;
-                        console.log(`Using S3 bucket URL: ${baseUrl}`); // Debug log
-                        // console.log(`Base URL: ${baseUrl}, Filename: ${filename}`);
+                        const baseUrl = s3BucketUrl;
                         return `${baseUrl}/${fullPath_s3}`;
                   })()
               }
