@@ -5,6 +5,7 @@ from math import floor
 import os
 from datetime import datetime, timedelta, timezone
 import sys
+from typing import Optional
 from zoneinfo import ZoneInfo
 from click import wrap_text
 from fastapi import FastAPI, HTTPException, Request, logger
@@ -115,10 +116,10 @@ app.mount("/static/images", StaticFiles(directory="/app/app/images/webcams"), na
 
 class ImageMeta(BaseModel):
     camera_id: str
-    original_pvc_path: str
-    watermarked_pvc_path: str
-    original_s3_path: str
-    watermarked_s3_path: str
+    original_pvc_path: Optional[str] = None
+    watermarked_pvc_path: Optional[str] = None
+    original_s3_path: Optional[str] = None
+    watermarked_s3_path: Optional[str] = None
     timestamp: datetime
     
 

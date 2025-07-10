@@ -72,7 +72,7 @@ const ReplayFrame = ({ cameraId, apiUrl, s3BucketUrl, pvcUrl, replayTheDay }) =>
                     const fullPath_pvc = currentImage.watermarked_pvc_path;
                     const baseUrl = pvcUrl;
                     const simplifiedPath = fullPath_pvc;
-                    const relativePath = "watermarked" + simplifiedPath.split("watermarked")[1];
+                    const relativePath = fullPath_pvc? "watermarked" + simplifiedPath.split("watermarked")[1]: "";
                     return `${baseUrl}/${relativePath}`;
                       
                     })()
