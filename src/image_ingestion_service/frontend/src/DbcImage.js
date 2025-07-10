@@ -60,9 +60,9 @@ function DbcImage({ cameraId }) {
         style={{ borderRadius: "0.5rem", boxShadow: "0 2px 8px rgba(0,0,0,0.1)", maxWidth: "70%" }}
     /> */}
 
-        {imageMeta?.path ? (
+        {imageMeta?.watermarked_pvc_path ? (
           <img 
-            src={`${watermarkedPvcUrl}/${cameraId}/${imageMeta.path.split("/").pop()}`}
+            src={`${watermarkedPvcUrl}/${cameraId}/${imageMeta.watermarked_pvc_path.split("/").pop()}`}
             alt={`Watermarked from camera ${cameraId}`} 
             style={{ 
               borderRadius: "0.5rem", 

@@ -67,8 +67,11 @@ index = []  # image index in memory
 index_db = [] # image index loaded from DB
 ready_event = asyncio.Event()
 
+print("✅ main.py loaded")
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    print("🔁 Lifespan startup triggered")
     global index_db
     # Initialize database
     db_pool = await init_db()
@@ -77,8 +80,8 @@ async def lifespan(app: FastAPI):
     # Load image index
     index_db = await load_index_from_db(db_pool)
 
-    # Start background tasks
-    # asyncio.create_task(consume_images(db_pool))
+    # Start periodic purge every N seconds
+    asyncio.create_task(purge_old_images_periodically(db_pool))
 
     ready_event.set()
 
@@ -112,8 +115,12 @@ app.mount("/static/images", StaticFiles(directory="/app/app/images/webcams"), na
 
 class ImageMeta(BaseModel):
     camera_id: str
+    original_pvc_path: str
+    watermarked_pvc_path: str
+    original_s3_path: str
+    watermarked_s3_path: str
     timestamp: datetime
-    path: str
+    
 
 
 
@@ -121,8 +128,10 @@ async def load_index_from_db(db_pool: any):
     # logger.info("Database connection pool initialized. Fetching records...")
     async with db_pool.acquire() as conn:
         records = await conn.fetch("""
-            SELECT camera_id, timestamp, s3_path, pvc_path, watermarked_path
+            SELECT camera_id, original_pvc_path, watermarked_pvc_path, original_s3_path, watermarked_s3_path, timestamp
             FROM image_index
+            WHERE original_s3_path IS NOT NULL
+            AND watermarked_s3_path IS NOT NULL
             ORDER BY timestamp
         """)
         
@@ -130,12 +139,11 @@ async def load_index_from_db(db_pool: any):
         index_db = [
             {
                 "camera_id": record["camera_id"],
-                # "timestamp": record["timestamp"].isoformat(),
+                "original_pvc_path": record["original_pvc_path"],
+                "watermarked_pvc_path": record["watermarked_pvc_path"],
+                "original_s3_path": record["original_s3_path"],
+                "watermarked_s3_path": record["watermarked_s3_path"],
                 "timestamp": record["timestamp"],
-                "s3_path": record["s3_path"],
-                "pvc_path": record["pvc_path"],
-                "watermarked_path": record["watermarked_path"],
-                "path": record["s3_path"]  # if you want to keep this alias
             }
             for record in records
         ]
@@ -307,55 +315,6 @@ def watermark_image(camera_id: str, image_data: bytes, milliseconds: int):
     except Exception as e:
         logger.error(f"Error processing image from camer: {camera_id} - {e}")
 
- 
-async def handle_image_message(db_pool: any, filename: str, body: bytes):
-    # Metadata: camera_id + timestamp
-    camera_id = filename.split("_")[0].split('.')[0]
-    timestamp = datetime.utcnow()
-    milliseconds = int(timestamp.timestamp() * 1000)
-    
-    # Save original image to s3
-    ext = "jpg"
-    key = f"{camera_id}/{timestamp.strftime('%Y/%m/%d/%H')}/{milliseconds}.{ext}"
-    s3_client.put_object(Bucket=S3_BUCKET, Key=key, Body=body)
-
-    s3_path = key
-    logger.info(f"Origianal image saved to S3 at {key}")
-
-    # Save original image to PVC, can be overwritten each time
-    save_dir = os.path.join(PVC_ORIGINAL_PATH)
-    os.makedirs(save_dir, exist_ok=True)
-    filename = f"{camera_id}.jpg"
-
-    filepath = os.path.join(save_dir, filename)
-    async with aiofiles.open(filepath, "wb") as f:
-        await f.write(body)
-    pvc_path = filepath
-    logger.info(f"Original image saved to PVC at {filepath}")
-
-    # Save watermarked image
-    # logger.info(f"Watermarking image for camera {camera_id} at {timestamp}")
-    watermark_image(camera_id, body, milliseconds)
-    watermarked_path = f"{PVC_WATERMARKED_PATH}/{camera_id}/{milliseconds}.jpg"
-
-    # Update index
-    index.append({
-        "camera_id": camera_id,
-        "timestamp": timestamp.isoformat(),
-        "s3_path": s3_path,
-        "pvc_path": pvc_path,
-        "watermarked_path": watermarked_path,
-        "path": s3_path
-    })
-
-    # Insert record into DB
-    async with db_pool.acquire() as conn:
-        await conn.execute("""
-            INSERT INTO image_index (camera_id, timestamp, s3_path, pvc_path, watermarked_path)
-            VALUES ($1, $2, $3, $4, $5)
-        """, camera_id, timestamp, s3_path, pvc_path, watermarked_path)
-
-    # logger.info(f"Image index for camera {camera_id} at {timestamp} saved to DB")
 
 # Endpoint for replay the day
 @app.get("/api/replay/{camera_id}")
@@ -393,3 +352,141 @@ async def get_original_image(camera_id: str, request: Request):
     latest_entry = max(filtered, key=lambda e: e["timestamp"])
     
     return ImageMeta(**latest_entry)
+
+# How often to run (in seconds)
+PURGE_INTERVAL_SECONDS = int(os.getenv("PURGE_INTERVAL_SECONDS", "10"))  # default: 1 hour
+
+async def purge_old_images_periodically(db_pool):
+    while True:
+        try:
+            print(f"[{datetime.now(timezone.utc)}] Starting purge task...")
+            await purge_old_pvc_images(db_pool, age="5 minutes")
+            await purge_old_s3_images(db_pool, age="10 minutes")
+        except Exception as e:
+            print(f"Error during purge: {e}")
+        await asyncio.sleep(PURGE_INTERVAL_SECONDS)
+
+# Define data directory (PVC)
+PVC_ROOT = "/app/app/images/webcams/watermarked"
+
+async def purge_old_pvc_images(db_pool, age: str = "5 minutes"):
+    # Fetch records older than 24 hours
+    async with db_pool.acquire() as conn:
+        rows = await conn.fetch(f"""
+            SELECT camera_id, original_pvc_path, watermarked_pvc_path,
+                original_s3_path, watermarked_s3_path, timestamp
+            FROM image_index
+            WHERE timestamp < NOW() - INTERVAL '{age}'
+            AND original_pvc_path IS NOT NULL
+            AND watermarked_pvc_path IS NOT NULL
+        """)
+
+
+        if not rows:
+            print("No old images to purge in pvc.")
+            return
+
+        files_to_delete = []
+        ids_to_delete = []
+
+        for row in rows:
+            path = row["watermarked_pvc_path"]
+            if path:
+                full_path = os.path.join(PVC_ROOT, path)
+                files_to_delete.append(full_path)
+                ids_to_delete.append(row["timestamp"])
+
+        await conn.execute("""
+            UPDATE image_index
+            SET original_pvc_path = NULL,
+                watermarked_pvc_path = NULL
+            WHERE timestamp < NOW() - INTERVAL '24 hours'
+            AND original_pvc_path IS NOT NULL
+            AND watermarked_pvc_path IS NOT NULL
+        """)
+
+
+        # Delete files from PVC
+        for file_path in files_to_delete:
+            try:
+                os.remove(file_path)
+                print(f"Deleted file: {file_path}")
+            except FileNotFoundError:
+                print(f"File not found: {file_path}")
+            except Exception as e:
+                print(f"Error deleting file {file_path}: {e}")
+
+
+S3_ROOT = "/test-s3-bucket"
+async def purge_old_s3_images(db_pool, age: str = "10 minutes"):
+    print(f"[{datetime.now(timezone.utc)}] Starting S3 purge task...")
+    async with db_pool.acquire() as conn:
+        # Fetch records older than 30 days
+        rows = await conn.fetch(f"""
+            SELECT camera_id, original_pvc_path, watermarked_pvc_path, original_s3_path, watermarked_s3_path, timestamp
+            FROM image_index
+            WHERE timestamp < NOW() - INTERVAL '{age}'
+            AND original_s3_path IS NOT NULL
+            AND watermarked_s3_path IS NOT NULL
+        """)
+
+        if not rows:
+            print("No old images to purge in s3.")
+            return
+
+        # Create list of file paths to delete
+        files_to_delete = []
+        ids_to_delete = []
+
+        for row in rows:
+            path = row["s3_path"]
+            if path:
+                full_path = os.path.join(S3_ROOT, path)
+                files_to_delete.append(full_path)
+                ids_to_delete.append(row["timestamp"])
+
+        print(f"Deleting {len(files_to_delete)} old S3 images...")
+        print(f"Deleting {len(ids_to_delete)} old S3 image index records...")
+                
+        await conn.execute("""
+            UPDATE image_index
+            SET original_s3_path = NULL,
+                watermarked_s3_path = NULL
+            WHERE timestamp < NOW() - INTERVAL '5 minutes'
+            AND original_s3_path IS NOT NULL
+            AND watermarked_s3_path IS NOT NULL
+        """)
+
+        # Setup S3 client for MinIO
+        s3_client = boto3.client(
+            "s3",
+            region_name=S3_REGION,
+            aws_access_key_id=S3_ACCESS_KEY,
+            aws_secret_access_key=S3_SECRET_KEY,
+            endpoint_url=S3_ENDPOINT_URL
+        )
+
+        BUCKET_NAME = "test-s3-bucket"
+
+        # Delete files from S3
+        for file_path in files_to_delete:
+            try:
+                s3_key = file_path.strip("/")
+
+                s3_client.delete_object(Bucket=BUCKET_NAME, Key=s3_key)
+                print(f"Deleted from S3: {s3_key}")
+
+            except s3_client.exceptions.NoSuchKey:
+                print(f"S3 key not found: {s3_key}")
+            except Exception as e:
+                print(f"Error deleting S3 file {s3_key}: {e}")
+
+        # Delete all records if all images paths are NULL
+        await conn.execute("""
+            DELETE image_index
+            WHERE original_pvc_path IS NULL
+            AND watermarked_pvc_path IS NULL
+            AND original_s3_path IS NULL
+            AND watermarked_s3_path IS NULL
+        """)
+        print("All purged recordes are deleted successfully.")

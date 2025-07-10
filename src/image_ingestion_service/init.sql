@@ -1,8 +1,9 @@
 CREATE TABLE image_index (
     id SERIAL PRIMARY KEY,
     camera_id TEXT NOT NULL,
-    timestamp TIMESTAMPTZ NOT NULL,
-    s3_path TEXT,
-    pvc_path TEXT,
-    watermarked_path TEXT
+    original_pvc_path TEXT,
+    watermarked_pvc_path TEXT,
+    original_s3_path TEXT,
+    watermarked_s3_path TEXT,
+    timestamp TIMESTAMPTZ NOT NULL
 );
