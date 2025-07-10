@@ -396,11 +396,11 @@ async def purge_old_pvc_images(db_pool, age: str = "5 minutes"):
                 files_to_delete.append(full_path)
                 ids_to_delete.append(row["timestamp"])
 
-        await conn.execute("""
+        await conn.execute(f"""
             UPDATE image_index
             SET original_pvc_path = NULL,
                 watermarked_pvc_path = NULL
-            WHERE timestamp < NOW() - INTERVAL '24 hours'
+            WHERE timestamp < NOW() - INTERVAL '{age}'
             AND original_pvc_path IS NOT NULL
             AND watermarked_pvc_path IS NOT NULL
         """)
@@ -439,7 +439,7 @@ async def purge_old_s3_images(db_pool, age: str = "10 minutes"):
         ids_to_delete = []
 
         for row in rows:
-            path = row["s3_path"]
+            path = row["watermarked_s3_path"]
             if path:
                 full_path = os.path.join(S3_ROOT, path)
                 files_to_delete.append(full_path)
@@ -448,11 +448,11 @@ async def purge_old_s3_images(db_pool, age: str = "10 minutes"):
         print(f"Deleting {len(files_to_delete)} old S3 images...")
         print(f"Deleting {len(ids_to_delete)} old S3 image index records...")
                 
-        await conn.execute("""
+        await conn.execute(f"""
             UPDATE image_index
             SET original_s3_path = NULL,
                 watermarked_s3_path = NULL
-            WHERE timestamp < NOW() - INTERVAL '5 minutes'
+            WHERE timestamp < NOW() - INTERVAL '{age}'
             AND original_s3_path IS NOT NULL
             AND watermarked_s3_path IS NOT NULL
         """)
