@@ -80,8 +80,8 @@ async def lifespan(app: FastAPI):
     # Load image index
     index_db = await load_index_from_db(db_pool)
 
-    # Start periodic purge every N seconds
-    asyncio.create_task(purge_old_images_periodically(db_pool))
+    # Start periodic purge
+    app.state.consume_images_task = asyncio.create_task(purge_old_images_periodically(db_pool))
 
     ready_event.set()
 
