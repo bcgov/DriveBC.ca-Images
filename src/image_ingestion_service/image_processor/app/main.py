@@ -77,8 +77,8 @@ async def lifespan(app: FastAPI):
     # Load image index
     index_db = await load_index_from_db(db_pool)
 
-    # Start background tasks
-    asyncio.create_task(consume_images(db_pool))
+    # Save background task to prevent GC
+    app.state.consume_images_task = asyncio.create_task(consume_images(db_pool))
 
     ready_event.set()
 
@@ -100,25 +100,23 @@ app.add_middleware(
 )
 
 # Static files for watermarked images on PVC
-# app.mount("/api/images", StaticFiles(directory="/app/app/images/webcams"), name="images")
 app.mount("/static/images", StaticFiles(directory="/app/app/images/webcams"), name="static-images")
-
-
-
 
 
 class ImageMeta(BaseModel):
     camera_id: str
+    original_pvc_path: str
+    watermarked_pvc_path: str
+    original_s3_path: str
+    watermarked_s3_path: str
     timestamp: datetime
-    path: str
-
 
 
 async def load_index_from_db(db_pool: any):
     # logger.info("Database connection pool initialized. Fetching records...")
     async with db_pool.acquire() as conn:
         records = await conn.fetch("""
-            SELECT camera_id, timestamp, s3_path, pvc_path, watermarked_path
+            SELECT camera_id, original_pvc_path, watermarked_pvc_path, original_s3_path, watermarked_s3_path, timestamp
             FROM image_index
             ORDER BY timestamp
         """)
@@ -127,12 +125,11 @@ async def load_index_from_db(db_pool: any):
         index_db = [
             {
                 "camera_id": record["camera_id"],
-                # "timestamp": record["timestamp"].isoformat(),
+                "original_pvc_path": record["original_pvc_path"],
+                "watermarked_pvc_path": record["watermarked_pvc_path"],
+                "original_s3_path": record["original_s3_path"],
+                "watermarked_s3_path": record["watermarked_s3_path"],
                 "timestamp": record["timestamp"],
-                "s3_path": record["s3_path"],
-                "pvc_path": record["pvc_path"],
-                "watermarked_path": record["watermarked_path"],
-                "path": record["s3_path"]  # if you want to keep this alias
             }
             for record in records
         ]
@@ -223,7 +220,7 @@ def get_timezone(webcam):
     tz_name = tf.timezone_at(lat=lat, lng=lon)
     return tz_name if tz_name else 'America/Vancouver'  # Fallback to PST if no timezone found
 
-def watermark_image(camera_id: str, image_data: bytes, milliseconds: int):
+def watermark(camera_id: str, image_data: bytes):
     # Load camera data from the database
     rows = get_all_from_db()
     db_data = process_camera_rows(rows)
@@ -277,116 +274,105 @@ def watermark_image(camera_id: str, image_data: bytes, milliseconds: int):
         mark = webcam.get('dbc_mark', '')
         pen.text((3,  height + 14), mark, fill="white", anchor='ls', font=FONT)
 
-        # save image in shared volume
-        os.makedirs(os.path.dirname(f'{PVC_WATERMARKED_PATH}'), exist_ok=True)
-
-        save_dir = os.path.join(PVC_WATERMARKED_PATH, camera_id)
-        os.makedirs(save_dir, exist_ok=True)
-        filename = f"{milliseconds}.jpg"
-        filepath = os.path.join(save_dir, filename)
-
-        with open(filepath, 'wb') as saved:
-            stamped.save(saved, 'jpeg', quality=75, exif=raw.getexif())
-        logger.info(f"Watermarked image saved to {filepath}")
-        # Set the last modified time to the last modified time plus a timedelta
-        # calculated mean time between updates, minus the standard
-        # deviation.  If that can't be calculated, default to 5 minutes.  This is
-        # then used to set the expires header in nginx.
-        delta = 300  # 5 minutes
-        try:
-            mean = webcam.get('update_period_mean')
-            stddev = webcam.get('update_period_stddev', 0)
-            delta = mean - stddev
-
-        except Exception as e:
-            logger.error(f"Error calculating delta: {e}")
+        # Return image as byte array
+        buffer = io.BytesIO()
+        stamped.save(buffer, format="JPEG")
+        return buffer.getvalue()
 
     except Exception as e:
         logger.error(f"Error processing image from camer: {camera_id} - {e}")
 
- 
-async def handle_image_message(db_pool: any, filename: str, body: bytes):
-    # Metadata: camera_id + timestamp
-    camera_id = filename.split("_")[0].split('.')[0]
-    timestamp = datetime.utcnow()
-    milliseconds = int(timestamp.timestamp() * 1000)
-    
-    # Save original image to s3
-    ext = "jpg"
-    key = f"{camera_id}/{timestamp.strftime('%Y/%m/%d/%H')}/{milliseconds}.{ext}"
-    s3_client.put_object(Bucket=S3_BUCKET, Key=key, Body=body)
-
-    s3_path = key
-    logger.info(f"Origianal image saved to S3 at {key}")
-
+def save_original_image_to_pvc(camera_id: str, image_bytes: bytes):
     # Save original image to PVC, can be overwritten each time
     save_dir = os.path.join(PVC_ORIGINAL_PATH)
     os.makedirs(save_dir, exist_ok=True)
     filename = f"{camera_id}.jpg"
 
     filepath = os.path.join(save_dir, filename)
-    async with aiofiles.open(filepath, "wb") as f:
-        await f.write(body)
-    pvc_path = filepath
-    logger.info(f"Original image saved to PVC at {filepath}")
+    try:
+        with open(filepath, "wb") as f:
+            f.write(image_bytes)
+    except Exception as e:
+        logger.error(f"Error saving original image to PVC {filepath}: {e}")
 
-    # Save watermarked image
-    # logger.info(f"Watermarking image for camera {camera_id} at {timestamp}")
-    watermark_image(camera_id, body, milliseconds)
-    watermarked_path = f"{PVC_WATERMARKED_PATH}/{camera_id}/{milliseconds}.jpg"
+    original_pvc_path = filepath
+    logger.info(f"Original image saved to PVC at {filepath}")
+    return original_pvc_path
+
+def save_original_image_to_s3(camera_id: str, image_bytes: bytes):
+    # Save original image to s3
+    ext = "jpg"
+    key = f"originals/{camera_id}.{ext}"
+    
+    try:
+        s3_client.put_object(Bucket=S3_BUCKET, Key=key, Body=image_bytes)
+    except Exception as e:
+        logger.error(f"Error saving original image to S3 bucket {S3_BUCKET}: {e}")
+
+    original_s3_path = key
+    logger.info(f"Origianal image saved to S3 at {key}")
+    return original_s3_path
+
+def save_watermarked_image_to_pvc(camera_id: str, image_bytes: bytes, milliseconds: int):  
+    os.makedirs(os.path.dirname(f'{PVC_WATERMARKED_PATH}'), exist_ok=True)
+
+    save_dir = os.path.join(PVC_WATERMARKED_PATH, camera_id)
+    os.makedirs(save_dir, exist_ok=True)
+    filename = f"{milliseconds}.jpg"
+    filepath = os.path.join(save_dir, filename)
+
+    try:
+        with open(filepath, "wb") as f:
+            f.write(image_bytes)
+        logger.info(f"Watermarked image saved to PVC at {filepath}")
+    except Exception as e:
+        logger.error(f"Error saving Watermarked image to PVC {filepath}: {e}")
+    
+    watermarked_pvc_path = filepath
+    return watermarked_pvc_path
+
+def save_watermarked_image_to_s3(camera_id: str, image_bytes: bytes, milliseconds: int):
+    ext = "jpg"
+    key = f"watermarked/{camera_id}/{milliseconds}.{ext}"
+    
+    try:
+        s3_client.put_object(Bucket=S3_BUCKET, Key=key, Body=image_bytes)
+    except Exception as e:
+        logger.error(f"Error saving watermarked image to S3 bucket {S3_BUCKET}: {e}")
+    
+    watermarked_s3_path = key
+    logger.info(f"Wartermarked image saved to S3 at {key}")
+    return watermarked_s3_path
+
+
+async def handle_image_message(db_pool: any, filename: str, body: bytes):
+    # Metadata: camera_id + timestamp
+    camera_id = filename.split("_")[0].split('.')[0]
+    timestamp = datetime.utcnow()
+    milliseconds = int(timestamp.timestamp() * 1000)
+
+    original_pvc_path = save_original_image_to_pvc(camera_id, body)
+    original_s3_path = save_original_image_to_s3(camera_id, body)
+
+    image_bytes = watermark(camera_id, body)
+
+    watermarked_pvc_path = save_watermarked_image_to_pvc(camera_id, image_bytes, milliseconds)
+    watermarked_s3_path = save_watermarked_image_to_s3(camera_id, image_bytes, milliseconds)
 
     # Update index
     index.append({
-        "camera_id": camera_id,
-        "timestamp": timestamp.isoformat(),
-        "s3_path": s3_path,
-        "pvc_path": pvc_path,
-        "watermarked_path": watermarked_path,
-        "path": s3_path
+        "camera_id": camera_id, 
+        "original_pvc_path": original_pvc_path,
+        "watermarked_pvc_path": watermarked_pvc_path,
+        "original_s3_path": original_s3_path,
+        "watermarked_s3_path": watermarked_s3_path,
+        "path": watermarked_s3_path,
+        "timestamp": timestamp.isoformat()
     })
 
     # Insert record into DB
     async with db_pool.acquire() as conn:
         await conn.execute("""
-            INSERT INTO image_index (camera_id, timestamp, s3_path, pvc_path, watermarked_path)
-            VALUES ($1, $2, $3, $4, $5)
-        """, camera_id, timestamp, s3_path, pvc_path, watermarked_path)
-
-    # logger.info(f"Image index for camera {camera_id} at {timestamp} saved to DB")
-
-# Endpoint for replay the day
-@app.get("/api/replay/{camera_id}")
-async def get_replay(camera_id: str, request: Request):
-    await ready_event.wait()
-    cutoff = datetime.now(timezone.utc) - timedelta(hours=24)
-    db_pool = request.app.state.db_pool
-    index_db = await load_index_from_db(db_pool)
-
-    results = [
-        ImageMeta(**entry) for entry in index_db
-        if entry["camera_id"] == camera_id and entry["timestamp"] >= cutoff
-    ]
-
-    return results
-
-# Endpoint for original image used for new control panel in RIDE
-@app.get("/api/images/{camera_id}")
-async def get_original_image(camera_id: str, request: Request):
-    await ready_event.wait()
-    cutoff = datetime.now(timezone.utc) - timedelta(hours=24)
-    db_pool = request.app.state.db_pool
-    index_db = await load_index_from_db(db_pool)
-
-    filtered = [
-        # entry for entry in index
-        entry for entry in index_db
-        if entry["camera_id"] == camera_id and entry["timestamp"] >= cutoff
-    ]
-
-    if not filtered:
-        return []
-
-    # Find the latest one
-    latest_entry = max(filtered, key=lambda e: e["timestamp"])
-    
-    return ImageMeta(**latest_entry)
+            INSERT INTO image_index (camera_id, original_pvc_path, watermarked_pvc_path, original_s3_path, watermarked_s3_path, timestamp)
+            VALUES ($1, $2, $3, $4, $5, $6)
+        """, camera_id, original_pvc_path, watermarked_pvc_path, original_s3_path, watermarked_s3_path, timestamp)
