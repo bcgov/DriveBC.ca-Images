@@ -68,11 +68,9 @@ index = []  # image index in memory
 index_db = [] # image index loaded from DB
 ready_event = asyncio.Event()
 
-print("✅ main.py loaded")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    print("🔁 Lifespan startup triggered")
     global index_db
     # Initialize database
     db_pool = await init_db()
@@ -361,8 +359,8 @@ async def purge_old_images_periodically(db_pool):
     while True:
         try:
             print(f"[{datetime.now(timezone.utc)}] Starting purge task...")
-            await purge_old_pvc_images(db_pool, age="5 minutes")
-            await purge_old_s3_images(db_pool, age="10 minutes")
+            await purge_old_pvc_images(db_pool, age="1 minutes")
+            await purge_old_s3_images(db_pool, age="2 minutes")
         except Exception as e:
             print(f"Error during purge: {e}")
         await asyncio.sleep(PURGE_INTERVAL_SECONDS)
@@ -370,7 +368,7 @@ async def purge_old_images_periodically(db_pool):
 # Define data directory (PVC)
 PVC_ROOT = "/app/app/images/webcams/watermarked"
 
-async def purge_old_pvc_images(db_pool, age: str = "5 minutes"):
+async def purge_old_pvc_images(db_pool, age: str = "24 hours"):
     # Fetch records older than 24 hours
     async with db_pool.acquire() as conn:
         rows = await conn.fetch(f"""
@@ -419,7 +417,7 @@ async def purge_old_pvc_images(db_pool, age: str = "5 minutes"):
 
 
 S3_ROOT = "/test-s3-bucket"
-async def purge_old_s3_images(db_pool, age: str = "10 minutes"):
+async def purge_old_s3_images(db_pool, age: str = "30 days"):
     print(f"[{datetime.now(timezone.utc)}] Starting S3 purge task...")
     async with db_pool.acquire() as conn:
         # Fetch records older than 30 days
@@ -474,6 +472,9 @@ async def purge_old_s3_images(db_pool, age: str = "10 minutes"):
             try:
                 s3_key = file_path.strip("/")
 
+                if s3_key.startswith(f"{BUCKET_NAME}/"):
+                    s3_key = s3_key[len(BUCKET_NAME) + 1:]
+
                 s3_client.delete_object(Bucket=BUCKET_NAME, Key=s3_key)
                 print(f"Deleted from S3: {s3_key}")
 
@@ -484,7 +485,7 @@ async def purge_old_s3_images(db_pool, age: str = "10 minutes"):
 
         # Delete all records if all images paths are NULL
         await conn.execute("""
-            DELETE image_index
+            DELETE FROM image_index
             WHERE original_pvc_path IS NULL
             AND watermarked_pvc_path IS NULL
             AND original_s3_path IS NULL
