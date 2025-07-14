@@ -1,5 +1,4 @@
 import io
-import json
 import logging
 from math import floor
 import os
@@ -8,27 +7,20 @@ import sys
 from typing import Optional
 from zoneinfo import ZoneInfo
 from click import wrap_text
-from fastapi import FastAPI, HTTPException, Request, logger
+from fastapi import FastAPI, Request, logger
 from pydantic import BaseModel
 import boto3
-import aio_pika
 import asyncio
-import aiofiles
 from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from .db import get_all_from_db, db_pool, init_db
+from .db import get_all_from_db, init_db
 from timezonefinder import TimezoneFinder
 from zoneinfo import ZoneInfo
-import asyncpg
 from contextlib import asynccontextmanager
-from dateutil import parser
-from aiormq.exceptions import ChannelInvalidStateError
-
 
 tf = TimezoneFinder()
-
 
 APP_DIR = Path(__file__).resolve().parent
 FONT = ImageFont.truetype(f'{APP_DIR}/static/BCSans.otf', size=14)
@@ -87,9 +79,7 @@ async def lifespan(app: FastAPI):
     # Yield control back to FastAPI
     yield
 
-
 app = FastAPI(lifespan=lifespan)
-
 
 # CORS middleware for local development
 app.add_middleware(
@@ -102,14 +92,7 @@ app.add_middleware(
 )
 
 # Static files for watermarked images on PVC
-# app.mount("/api/images", StaticFiles(directory="/app/app/images/webcams"), name="images")
 app.mount("/static/images", StaticFiles(directory="/app/app/images/webcams"), name="static-images")
-
-
-
-
-
-
 
 
 class ImageMeta(BaseModel):
@@ -119,9 +102,6 @@ class ImageMeta(BaseModel):
     original_s3_path: Optional[str] = None
     watermarked_s3_path: Optional[str] = None
     timestamp: datetime
-    
-
-
 
 async def load_index_from_db(db_pool: any):
     # logger.info("Database connection pool initialized. Fetching records...")
@@ -148,61 +128,6 @@ async def load_index_from_db(db_pool: any):
         ]
         # logger.info(f"Loaded {len(index_db)} records from the database index.")
         return index_db
-
-# async def consume_images(db_pool: any):
-#     connection = None
-#     channel = None
-
-#     try:
-#         rb_url = os.getenv("RABBITMQ_URL")
-#         if not rb_url:
-#             raise ValueError("RABBITMQ_URL environment variable is not set")
-
-#         connection = await aio_pika.connect_robust(rb_url)
-#         channel = await connection.channel()
-
-#         exchange = await channel.declare_exchange(
-#             name="test.fanout_image_test",
-#             type=aio_pika.ExchangeType.FANOUT,
-#             durable=True
-#         )
-
-#         queue = await channel.declare_queue(
-#             "image-queue-image-archiver",
-#             durable=True,
-#             exclusive=False,
-#             auto_delete=False,
-#             arguments={"x-max-length-bytes": 419430400}
-#         )
-
-#         await queue.bind(exchange)
-
-#         async with queue.iterator() as queue_iter:
-#             async for message in queue_iter:
-#                 async with message.process():
-#                     filename = message.headers.get("filename", "unknown.jpg")
-#                     await handle_image_message(db_pool, filename, message.body)
-
-#     except asyncio.CancelledError:
-#         logger.info("Image consumer task was cancelled.")
-#         raise
-#     except ChannelInvalidStateError:
-#         logger.warning("AMQP channel closed during shutdown. Skipping further cleanup.")
-#     except Exception as e:
-#         logger.exception("Unhandled error in consume_images")
-#     finally:
-#         logger.info("Cleaning up RabbitMQ resources...")
-#         try:
-#             if channel and not channel.is_closed:
-#                 await channel.close()
-#         except Exception as e:
-#             logger.warning(f"Error closing channel: {e}")
-
-#         try:
-#             if connection and not connection.is_closed:
-#                 await connection.close()
-#         except Exception as e:
-#             logger.warning(f"Error closing connection: {e}")
 
 def process_camera_rows(rows):
     if not rows:
@@ -315,11 +240,24 @@ def watermark_image(camera_id: str, image_data: bytes, milliseconds: int):
         logger.error(f"Error processing image from camer: {camera_id} - {e}")
 
 
-# Endpoint for replay the day
-@app.get("/api/replay/{camera_id}")
-async def get_replay(camera_id: str, request: Request):
+# # Endpoint for replay the day
+# @app.get("/api/replay/{camera_id}")
+# async def get_replay(camera_id: str, request: Request):
+#     await ready_event.wait()
+#     cutoff = datetime.now(timezone.utc) - timedelta(hours=24)
+#     db_pool = request.app.state.db_pool
+#     index_db = await load_index_from_db(db_pool)
+
+#     results = [
+#         ImageMeta(**entry) for entry in index_db
+#         if entry["camera_id"] == camera_id and entry["timestamp"] >= cutoff
+#     ]
+
+#     return results
+
+async def get_images_within(camera_id: str, request: Request, hours: int = 24) -> list:
     await ready_event.wait()
-    cutoff = datetime.now(timezone.utc) - timedelta(hours=24)
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
     db_pool = request.app.state.db_pool
     index_db = await load_index_from_db(db_pool)
 
@@ -329,6 +267,15 @@ async def get_replay(camera_id: str, request: Request):
     ]
 
     return results
+# Endpoint for replay the day
+@app.get("/api/replay/{camera_id}")
+async def get_replay(camera_id: str, request: Request):
+    return await get_images_within(camera_id, request, hours=24)
+
+# Endpoint for timelaps (30 days)
+@app.get("/api/timelaps/{camera_id}")
+async def get_timelaps(camera_id: str, request: Request):
+    return await get_images_within(camera_id, request, hours=30 * 24)
 
 # Endpoint for original image used for new control panel in RIDE
 @app.get("/api/images/{camera_id}")
