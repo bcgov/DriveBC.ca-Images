@@ -1,23 +1,20 @@
-import io
 import logging
 from math import floor
 import os
 from datetime import datetime, timedelta, timezone
 import sys
 from typing import Optional
-from zoneinfo import ZoneInfo
 from click import wrap_text
-from fastapi import FastAPI, Request, logger
+from fastapi import FastAPI, Request
 from pydantic import BaseModel
 import boto3
 import asyncio
 from pathlib import Path
-from PIL import Image, ImageDraw, ImageFont
+from PIL import ImageFont
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from .db import get_all_from_db, init_db
 from timezonefinder import TimezoneFinder
-from zoneinfo import ZoneInfo
 from contextlib import asynccontextmanager
 
 tf = TimezoneFinder()
@@ -44,18 +41,6 @@ S3_ACCESS_KEY = os.getenv("S3_ACCESS_KEY")
 S3_SECRET_KEY = os.getenv("S3_SECRET_KEY")
 RABBITMQ_URL = os.getenv("RABBITMQ_URL", "amqp://guest:guest@rabbitmq/")
 S3_ENDPOINT_URL = os.getenv("S3_ENDPOINT_URL", "")
-
-# S3 client
-s3_client = None
-s3_client = boto3.client(
-    "s3",
-    region_name=S3_REGION,
-    aws_access_key_id=S3_ACCESS_KEY,
-    aws_secret_access_key=S3_SECRET_KEY,
-    endpoint_url=S3_ENDPOINT_URL
-)
-
-index = []  # image index in memory
 
 index_db = [] # image index loaded from DB
 ready_event = asyncio.Event()
@@ -129,131 +114,6 @@ async def load_index_from_db(db_pool: any):
         # logger.info(f"Loaded {len(index_db)} records from the database index.")
         return index_db
 
-def process_camera_rows(rows):
-    if not rows:
-        logger.error("No camera rows found in the database.")
-        return []
-    camera_list = []
-    for row in rows:
-        camera_obj = {
-            'id': row.get('ID'),
-            'cam_locationsGeo_latitude': row.get('Cam_LocationsGeo_Latitude'),
-            'cam_locationsGeo_longitude': row.get('Cam_LocationsGeo_Longitude'),
-            "last_update_modified": datetime.now(timezone.utc),
-            "update_period_mean": 300,
-            "update_period_stddev": 60,
-            "dbc_mark": "DriveBC",
-            "is_on": True if not row.get('Cam_ControlDisabled') else False,
-            "message": {
-                "long": "This is a sample message for the webcam."
-            }
-        }
-        camera_list.append(camera_obj)
-    return camera_list
-
-def get_timezone(webcam):
-    lat = float(webcam.get('cam_locationsGeo_latitude'))
-    lon = float(webcam.get('cam_locationsGeo_longitude'))
-
-    tz_name = tf.timezone_at(lat=lat, lng=lon)
-    return tz_name if tz_name else 'America/Vancouver'  # Fallback to PST if no timezone found
-
-def watermark_image(camera_id: str, image_data: bytes, milliseconds: int):
-    # Load camera data from the database
-    rows = get_all_from_db()
-    db_data = process_camera_rows(rows)
-    if not db_data:
-        logger.error("No camera data available for watermarking.")
-        return
-    webcams = [cam for cam in db_data if cam['id'] == int(camera_id)]
-    webcam = webcams[0] if webcams else None
-    tz = get_timezone(webcam) if webcam else 'America/Vancouver'
-    try:
-        if image_data is None:
-            return
-
-        raw = Image.open(io.BytesIO(image_data))
-        width, height = raw.size
-        if width > 800:
-            ratio = 800 / width
-            width = 800
-            height = floor(height * ratio)
-            raw = raw.resize((width, height))
-
-        stamped = Image.new('RGB', (width, height + 18))
-        pen = ImageDraw.Draw(stamped)
-        lastmod = webcam.get('last_update_modified')
-
-        if webcam.get('is_on'):
-            stamped.paste(raw)  # leaves 18 pixel black bar left at bottom
-
-            timestamp = 'Last modification time unavailable'
-            if lastmod is not None:
-                month = lastmod.strftime('%b')
-                day = lastmod.strftime('%d')
-                day = day[1:] if day[:1] == '0' else day  # strip leading zero
-                dt_local = lastmod.astimezone(ZoneInfo(tz))
-                timestamp = f'{month} {day}, {dt_local.strftime("%Y %H:%M:%S %p %Z")}'
-            pen.text((width - 3,  height + 14), timestamp, fill="white",
-                     anchor='rs', font=FONT)
-
-        else:  # camera is unavailable, replace image with message
-            message = webcam.get('message', {}).get('long')
-            wrapped = wrap_text(message, pen, FONT_LARGE, min(width - 40, 500))
-            bbox = pen.multiline_textbbox((0, 0), wrapped, font=FONT_LARGE)
-            x = (width - bbox[2]) / 2
-            pen.multiline_text((x, 20), wrapped, fill="white", align='center',
-                               font=FONT_LARGE)
-            pen.polygon(((0, height), (width, height),
-                         (width, height + 18), (0, height + 18)),
-                        fill="red")
-
-        # add mark and timestamp to black bar
-        mark = webcam.get('dbc_mark', '')
-        pen.text((3,  height + 14), mark, fill="white", anchor='ls', font=FONT)
-
-        # save image in shared volume
-        os.makedirs(os.path.dirname(f'{PVC_WATERMARKED_PATH}'), exist_ok=True)
-
-        save_dir = os.path.join(PVC_WATERMARKED_PATH, camera_id)
-        os.makedirs(save_dir, exist_ok=True)
-        filename = f"{milliseconds}.jpg"
-        filepath = os.path.join(save_dir, filename)
-
-        with open(filepath, 'wb') as saved:
-            stamped.save(saved, 'jpeg', quality=75, exif=raw.getexif())
-        logger.info(f"Watermarked image saved to {filepath}")
-        # Set the last modified time to the last modified time plus a timedelta
-        # calculated mean time between updates, minus the standard
-        # deviation.  If that can't be calculated, default to 5 minutes.  This is
-        # then used to set the expires header in nginx.
-        delta = 300  # 5 minutes
-        try:
-            mean = webcam.get('update_period_mean')
-            stddev = webcam.get('update_period_stddev', 0)
-            delta = mean - stddev
-
-        except Exception as e:
-            logger.error(f"Error calculating delta: {e}")
-
-    except Exception as e:
-        logger.error(f"Error processing image from camer: {camera_id} - {e}")
-
-
-# # Endpoint for replay the day
-# @app.get("/api/replay/{camera_id}")
-# async def get_replay(camera_id: str, request: Request):
-#     await ready_event.wait()
-#     cutoff = datetime.now(timezone.utc) - timedelta(hours=24)
-#     db_pool = request.app.state.db_pool
-#     index_db = await load_index_from_db(db_pool)
-
-#     results = [
-#         ImageMeta(**entry) for entry in index_db
-#         if entry["camera_id"] == camera_id and entry["timestamp"] >= cutoff
-#     ]
-
-#     return results
 
 async def get_images_within(camera_id: str, request: Request, hours: int = 24) -> list:
     await ready_event.wait()
@@ -267,6 +127,7 @@ async def get_images_within(camera_id: str, request: Request, hours: int = 24) -
     ]
 
     return results
+
 # Endpoint for replay the day
 @app.get("/api/replay/{camera_id}")
 async def get_replay(camera_id: str, request: Request):
@@ -403,7 +264,7 @@ async def purge_old_s3_images(db_pool, age: str = "30 days"):
             AND watermarked_s3_path IS NOT NULL
         """)
 
-        # Setup S3 client for MinIO
+        # Setup S3 client
         s3_client = boto3.client(
             "s3",
             region_name=S3_REGION,
