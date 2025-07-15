@@ -143,7 +143,7 @@ def process_camera_rows(rows):
             "update_period_mean": 300,
             "update_period_stddev": 60,
             "dbc_mark": "DriveBC",
-            "is_on": True,
+            "is_on": True if not row.get('Cam_ControlDisabled') else False,
             "message": {
                 "long": "This is a sample message for the webcam."
             }
