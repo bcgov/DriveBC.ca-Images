@@ -1,0 +1,40 @@
+{
+    auto_https off
+    persist_config off
+    storage_clean_interval off
+    storage_check off
+    metrics
+}
+
+:8080 {
+    log {
+        output stdout
+        format json
+    }    
+    log_skip /healthz
+
+    route /api/images {
+        @no_auth_header {
+            not header Authorization *
+        }
+
+        handle @no_auth_header {
+            header WWW-Authenticate "Basic"
+            respond "Unauthorized" 401
+        }
+
+        reverse_proxy {
+            to {env.ENVIRONMENT}-image-ingestion-service-backend:8000
+            transport http
+        }
+    }
+
+    route /healthz {
+        @internal_only {
+            remote_ip 10.0.0.0/8
+        }
+        respond @internal_only "healthy" 200
+        respond "Forbidden" 403
+    }
+    respond "" 200
+}

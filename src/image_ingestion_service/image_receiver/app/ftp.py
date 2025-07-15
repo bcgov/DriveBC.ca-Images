@@ -28,7 +28,7 @@ async def upload_to_ftp(image_bytes: bytes, filename: str, camera_id: str, targe
         for segment in path_segments:
             current_path = f"{current_path}/{segment}" if current_path else segment
             try:
-                logger.info("Creating directory on FTP: /%s", current_path)
+                logger.debug("Creating directory on FTP: /%s", current_path)
                 await ftp_client.command(f"MKD /{current_path}", "2xx")
             except aioftp.StatusCodeError as e:
                 # 550 often means "already exists" — we can skip it

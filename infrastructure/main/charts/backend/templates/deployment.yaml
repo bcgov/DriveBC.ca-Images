@@ -54,6 +54,10 @@ spec:
               value: {{ $deploymentTime | quote }}
             - name: RELEASE
               value: {{ .Values.global.release }}
+            {{- range $key, $value := .Values.deployment.env.variables }}
+            - name: {{ $key }}
+              value: {{ $value | quote }}
+            {{- end }}
           command:
             - sh
             - -c

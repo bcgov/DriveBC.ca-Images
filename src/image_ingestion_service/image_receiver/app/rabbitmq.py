@@ -9,6 +9,9 @@ async def send_to_rabbitmq(image_bytes, filename, camera_id):
     rb_url = os.getenv("RABBITMQ_URL")
     if not rb_url:
         raise ValueError("RABBITMQ_URL environment variable is not set")
+    rb_exchange_name = os.getenv("RABBITMQ_EXCHANGE_NAME")
+    if not rb_exchange_name:
+        raise ValueError("RABBITMQ_EXCHANGE_NAME environment variable is not set")
     # Get current timestamp in ISO 8601 format
     timestamp = datetime.now(timezone.utc).isoformat()
     # Parse back to datetime object
@@ -21,7 +24,7 @@ async def send_to_rabbitmq(image_bytes, filename, camera_id):
         async with connection:
             channel = await connection.channel()
             exchange = await channel.declare_exchange(
-                    name="test.fanout_image_test",
+                    name=rb_exchange_name,
                     type=aio_pika.ExchangeType.FANOUT,
                     durable=True
                 )
