@@ -205,7 +205,7 @@ def process_camera_rows(rows):
             "update_period_mean": 300,
             "update_period_stddev": 60,
             "dbc_mark": "DriveBC",
-            "is_on": True,
+            "is_on": True if not row.get('Cam_ControlDisabled') else False,
             "message": {
                 "long": "This is a sample message for the webcam."
             }
@@ -261,7 +261,13 @@ def watermark(camera_id: str, image_data: bytes):
 
         else:  # camera is unavailable, replace image with message
             message = webcam.get('message', {}).get('long')
-            wrapped = wrap_text(message, pen, FONT_LARGE, min(width - 40, 500))
+            wrapped = wrap_text(
+                text=message,
+                width=min(width - 40, 500),
+                initial_indent="",
+                subsequent_indent="",
+                preserve_paragraphs=False
+            )
             bbox = pen.multiline_textbbox((0, 0), wrapped, font=FONT_LARGE)
             x = (width - bbox[2]) / 2
             pen.multiline_text((x, 20), wrapped, fill="white", align='center',
