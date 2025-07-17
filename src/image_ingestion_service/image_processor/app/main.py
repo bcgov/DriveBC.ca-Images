@@ -419,9 +419,10 @@ async def update_replay_json(camera_id: str, db_pool: any):
 async def handle_image_message(db_pool: any, filename: str, body: bytes, timestamp: str):
     # Metadata: camera_id + timestamp
     camera_id = filename.split("_")[0].split('.')[0]
-    # timestamp = datetime.utcnow()
+    if not timestamp or timestamp == "unknown":
+        logger.error(f"Invalid timestamp received: {timestamp} for camera_id {camera_id}")
+        return
     dt = datetime.strptime(timestamp, "%Y%m%d%H%M")
-    # milliseconds = int(timestamp.timestamp() * 1000)
 
     original_pvc_path = save_original_image_to_pvc(camera_id, body)
     original_s3_path = save_original_image_to_s3(camera_id, body)
