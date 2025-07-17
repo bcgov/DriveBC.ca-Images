@@ -2,25 +2,25 @@
 # version: "3.9"
 
 services:
-  # image-receiver:
-  #   container_name: image-receiver
-  #   build: ./image_receiver
-  #   ports:
-  #     - "8000:8000"
-  #   environment:
-  #     - RABBITMQ_URL=${RABBITMQ_URL}
-  #     - CAMERA_IP_MAPPING=${CAMERA_IP_MAPPING}
-  #     - LOCATION_USER_PASS_MAPPING=${LOCATION_USER_PASS_MAPPING}
-  #     - CAMERA_LOCATION_MAPPING=${CAMERA_LOCATION_MAPPING}
-  #     - FTP_HOST=${FTP_HOST}
-  #     - FTP_PORT=${FTP_PORT}
-  #     - FTP_USER_NAME=${FTP_USER}
-  #     - FTP_USER_PASS=${FTP_PASS}
-  #     - FTP_USER_HOME=/home/test
-  #     - DB_SERVER=${DB_SERVER}
-  #     - DB_NAME=${DB_NAME}
-  #     - DB_USER=${DB_USER}
-  #     - DB_PASSWORD=${DB_PASSWORD}
+  image-receiver:
+    container_name: image-receiver
+    build: ./image_receiver
+    ports:
+      - "8000:8000"
+    environment:
+      - RABBITMQ_URL=${RABBITMQ_URL}
+      - CAMERA_IP_MAPPING=${CAMERA_IP_MAPPING}
+      - LOCATION_USER_PASS_MAPPING=${LOCATION_USER_PASS_MAPPING}
+      - CAMERA_LOCATION_MAPPING=${CAMERA_LOCATION_MAPPING}
+      - FTP_HOST=${FTP_HOST}
+      - FTP_PORT=${FTP_PORT}
+      - FTP_USER_NAME=${FTP_USER}
+      - FTP_USER_PASS=${FTP_PASS}
+      - FTP_USER_HOME=/home/test
+      - DB_SERVER=${DB_SERVER}
+      - DB_NAME=${DB_NAME}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
 
   image-processor:
     container_name: image-processor
@@ -48,6 +48,7 @@ services:
     volumes:
       # - pvc-data:/app/data  # For PVC style storage
       - pvc-data:/app/app/images/webcams
+      - ./ReplayTheDay/json:/app/ReplayTheDay/json
   
   image-provider:
     container_name: image-provider
@@ -75,6 +76,7 @@ services:
     volumes:
       # - pvc-data:/app/data  # For PVC style storage
       - pvc-data:/app/app/images/webcams
+      - ./ReplayTheDay/json:/app/ReplayTheDay/json
 
   minio:
     image: minio/minio:latest
@@ -111,6 +113,14 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+
+  frontend:
+      build: ./frontend
+      ports:
+        - "3000:80"  # maps localhost:3000 to nginx serving frontend
+      depends_on:
+        - image-provider
+
 
 volumes:
   minio-data:

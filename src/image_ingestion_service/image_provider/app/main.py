@@ -1,3 +1,5 @@
+from io import BytesIO
+import json
 import logging
 from math import floor
 import os
@@ -6,6 +8,8 @@ import sys
 from typing import Optional
 from click import wrap_text
 from fastapi import FastAPI, Request
+from fastapi.encoders import jsonable_encoder
+from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel
 import boto3
 import asyncio
@@ -80,6 +84,7 @@ app.add_middleware(
 app.mount("/static/images", StaticFiles(directory="/app/app/images/webcams"), name="static-images")
 
 
+
 class ImageMeta(BaseModel):
     camera_id: str
     original_pvc_path: Optional[str] = None
@@ -128,6 +133,83 @@ async def get_images_within(camera_id: str, request: Request, hours: int = 24) -
 
     return results
 
+# # Endpoint for replay the day compatible with old pulling endpoint
+# @app.get("/ReplayTheDay/archive/{camera_id}")
+# async def get_replay(camera_id: str, request: Request):
+#     return await get_images_within(camera_id, request, hours=24)
+
+# Save files under "json" folder
+OUTPUT_DIR = "/app/ReplayTheDay/json"
+os.makedirs(OUTPUT_DIR, exist_ok=True)
+
+# Mount the folder so it’s accessible at /json
+# Mount it for public access
+app.mount("/ReplayTheDay/json", StaticFiles(directory=OUTPUT_DIR), name="replay_json")
+
+# @app.get("/ReplayTheDay/archive/{camera_id}")
+# async def get_replay(camera_id: str, request: Request):
+#     results = await get_images_within(camera_id, request, hours=24)
+
+#     # Convert to JSON-compatible format
+#     encoded_results = jsonable_encoder(results)
+
+#     # Ensure "json" folder exists
+#     os.makedirs(OUTPUT_DIR, exist_ok=True)
+
+#     # Full file path
+#     file_path = os.path.join(OUTPUT_DIR, f"{camera_id}.json")
+
+#     # Write JSON to the file
+#     with open(file_path, "w", encoding="utf-8") as f:
+#         json.dump(encoded_results, f, indent=4)
+
+#     return JSONResponse({"status": "success", "file_path": file_path})
+
+@app.get("/ReplayTheDay/archive/{camera_id}")
+async def get_replay(camera_id: str, request: Request):
+    results = await get_images_within(camera_id, request, hours=24)
+
+    # Convert results into JSON-safe format
+    encoded_results = jsonable_encoder(results)
+
+    # Extract numeric IDs from watermarked_pvc_path
+    ids = []
+    for item in encoded_results:
+        watermarked_path = item.get("watermarked_pvc_path", "")
+        filename = os.path.basename(watermarked_path)  # e.g., "1752692963163.jpg"
+        file_id, _ = os.path.splitext(filename)  # split "1752692963163" and ".jpg"
+        ids.append(file_id)
+
+    # Create the JSON file with only IDs
+    file_path = os.path.join(OUTPUT_DIR, f"{camera_id}.json")
+    with open(file_path, "w", encoding="utf-8") as f:
+        json.dump(ids, f, indent=4)
+
+    return JSONResponse({
+        "status": "success",
+        "file_path": f"/ReplayTheDay/json/{camera_id}.json",
+        "count": len(ids)
+    })
+
+
+
+async def get_images_within_test(camera_id: str, request: Request, hours: int = 24) -> list:
+    await ready_event.wait()
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
+    db_pool = request.app.state.db_pool
+    index_db = await load_index_from_db(db_pool)
+
+    results = [
+        ImageMeta(**entry) for entry in index_db
+        if entry["camera_id"] == camera_id and entry["timestamp"] >= cutoff
+    ]
+    return results
+
+# Endpoint for timelaps (30 days)
+@app.get("/Timelapse/archive/{camera_id}")
+async def get_timelaps(camera_id: str, request: Request):
+    return await get_images_within(camera_id, request, hours=30 * 24)
+
 # Endpoint for replay the day
 @app.get("/api/replay/{camera_id}")
 async def get_replay(camera_id: str, request: Request):
@@ -167,8 +249,9 @@ async def purge_old_images_periodically(db_pool):
     while True:
         try:
             print(f"[{datetime.now(timezone.utc)}] Starting purge task...")
-            await purge_old_pvc_images(db_pool, age="1 minutes")
-            await purge_old_s3_images(db_pool, age="2 minutes")
+            purge_pvc_age = os.getenv("PURGE_PVC_AGE", "24 hours")
+            await purge_old_pvc_images(db_pool, age=f"{purge_pvc_age} hours")
+            await purge_old_s3_images(db_pool, age=f"{purge_pvc_age} days")
         except Exception as e:
             print(f"Error during purge: {e}")
         await asyncio.sleep(PURGE_INTERVAL_SECONDS)

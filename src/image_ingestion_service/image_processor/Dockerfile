@@ -14,6 +14,8 @@ RUN apt-get update && \
 
 WORKDIR /app
 
+RUN mkdir -p /app/ReplayTheDay/json && chmod 777 /app/ReplayTheDay/json
+
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 

@@ -8,6 +8,8 @@ import sys
 from zoneinfo import ZoneInfo
 from click import wrap_text
 from fastapi import FastAPI, HTTPException, Request, logger
+from fastapi.encoders import jsonable_encoder
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 import boto3
 import aio_pika
@@ -168,7 +170,8 @@ async def consume_images(db_pool: any):
             async for message in queue_iter:
                 async with message.process():
                     filename = message.headers.get("filename", "unknown.jpg")
-                    await handle_image_message(db_pool, filename, message.body)
+                    timestamp = format_timestamp(message.headers.get("timestamp", "unknown"))
+                    await handle_image_message(db_pool, filename, message.body, timestamp)
 
     except asyncio.CancelledError:
         logger.info("Image consumer task was cancelled.")
@@ -190,6 +193,19 @@ async def consume_images(db_pool: any):
                 await connection.close()
         except Exception as e:
             logger.warning(f"Error closing connection: {e}")
+
+def format_timestamp(timestamp: str) -> str:
+    try:
+        if timestamp and timestamp != "unknown":
+            dt = datetime.fromisoformat(timestamp)
+
+            # Desired format: YYYYMMDDHHMM
+            timestamp = dt.strftime("%Y%m%d%H%M")
+        else:
+            timestamp = "unknown"
+    except Exception as e:
+        logger.error(f"Error parsing timestamp {timestamp}: {e}")
+    return timestamp  
 
 def process_camera_rows(rows):
     if not rows:
@@ -351,19 +367,64 @@ def save_watermarked_image_to_s3(camera_id: str, image_bytes: bytes, millisecond
     return watermarked_s3_path
 
 
-async def handle_image_message(db_pool: any, filename: str, body: bytes):
+# Save files under "json" folder
+OUTPUT_DIR = "/app/ReplayTheDay/json"
+os.makedirs(OUTPUT_DIR, exist_ok=True)
+
+# Mount the folder so it’s accessible at /json
+async def get_images_within(camera_id: str, db_pool: any, hours: int = 24) -> list:
+    await ready_event.wait()
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
+    index_db = await load_index_from_db(db_pool)
+
+    results = [
+        ImageMeta(**entry) for entry in index_db
+        if entry["camera_id"] == camera_id and entry["timestamp"] >= cutoff
+    ]
+
+    return results
+
+async def update_replay_json(camera_id: str, db_pool: any):
+    results = await get_images_within(camera_id, db_pool, hours=24)
+
+    # Convert results into JSON-safe format
+    encoded_results = jsonable_encoder(results)
+
+    # Extract numeric IDs from watermarked_pvc_path
+    ids = []
+    for item in encoded_results:
+        watermarked_path = item.get("watermarked_pvc_path", "")
+        filename = os.path.basename(watermarked_path)  # e.g., "1752692963163.jpg"
+        file_id, _ = os.path.splitext(filename)  # split "1752692963163" and ".jpg"
+        ids.append(file_id)
+
+    # Create the JSON file with only IDs
+    logger.info(f"Updating JSON file for camera {camera_id} with {len(ids)} IDs")
+    file_path = os.path.join(OUTPUT_DIR, f"{camera_id}.json")
+    with open(file_path, "w", encoding="utf-8") as f:
+        json.dump(ids, f, indent=4)
+    logger.info(f"JSON file for camera {camera_id} saved at {file_path}")
+
+    return JSONResponse({
+        "status": "success",
+        "file_path": f"/ReplayTheDay/json/{camera_id}.json",
+        "count": len(ids)
+    })
+
+
+async def handle_image_message(db_pool: any, filename: str, body: bytes, timestamp: str):
     # Metadata: camera_id + timestamp
     camera_id = filename.split("_")[0].split('.')[0]
     timestamp = datetime.utcnow()
-    milliseconds = int(timestamp.timestamp() * 1000)
+    # milliseconds = int(timestamp.timestamp() * 1000)
 
     original_pvc_path = save_original_image_to_pvc(camera_id, body)
     original_s3_path = save_original_image_to_s3(camera_id, body)
 
     image_bytes = watermark(camera_id, body)
 
-    watermarked_pvc_path = save_watermarked_image_to_pvc(camera_id, image_bytes, milliseconds)
-    watermarked_s3_path = save_watermarked_image_to_s3(camera_id, image_bytes, milliseconds)
+    watermarked_pvc_path = save_watermarked_image_to_pvc(camera_id, image_bytes, timestamp)
+    watermarked_s3_path = save_watermarked_image_to_s3(camera_id, image_bytes, timestamp)
 
     # Update index
     index.append({
@@ -375,6 +436,10 @@ async def handle_image_message(db_pool: any, filename: str, body: bytes):
         "path": watermarked_s3_path,
         "timestamp": timestamp.isoformat()
     })
+
+    # update json file for replay the day
+    await update_replay_json(camera_id, db_pool)
+
 
     # Insert record into DB
     async with db_pool.acquire() as conn:
