@@ -415,7 +415,7 @@ async def update_replay_json(camera_id: str, db_pool: any):
 async def handle_image_message(db_pool: any, filename: str, body: bytes, timestamp: str):
     # Metadata: camera_id + timestamp
     camera_id = filename.split("_")[0].split('.')[0]
-    timestamp = datetime.utcnow()
+    # timestamp = datetime.utcnow()
     # milliseconds = int(timestamp.timestamp() * 1000)
 
     original_pvc_path = save_original_image_to_pvc(camera_id, body)
