@@ -434,7 +434,7 @@ async def handle_image_message(db_pool: any, filename: str, body: bytes, timesta
         "original_s3_path": original_s3_path,
         "watermarked_s3_path": watermarked_s3_path,
         "path": watermarked_s3_path,
-        "timestamp": timestamp.isoformat()
+        "timestamp": timestamp
     })
 
     # update json file for replay the day
