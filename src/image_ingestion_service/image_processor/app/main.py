@@ -401,8 +401,12 @@ async def update_replay_json(camera_id: str, db_pool: any):
     # Create the JSON file with only IDs
     logger.info(f"Updating JSON file for camera {camera_id} with {len(ids)} IDs")
     file_path = os.path.join(OUTPUT_DIR, f"{camera_id}.json")
-    with open(file_path, "w", encoding="utf-8") as f:
-        json.dump(ids, f, indent=4)
+    # with open(file_path, "w", encoding="utf-8") as f:
+    #     json.dump(ids, f, indent=4)
+
+    async with aiofiles.open(file_path, "w", encoding="utf-8") as f:
+        data_str = json.dumps(ids, indent=4)
+        await f.write(data_str)
     logger.info(f"JSON file for camera {camera_id} saved at {file_path}")
 
     return JSONResponse({
