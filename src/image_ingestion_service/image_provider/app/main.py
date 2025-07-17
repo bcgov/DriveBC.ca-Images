@@ -133,64 +133,12 @@ async def get_images_within(camera_id: str, request: Request, hours: int = 24) -
 
     return results
 
-# # Endpoint for replay the day compatible with old pulling endpoint
-# @app.get("/ReplayTheDay/archive/{camera_id}")
-# async def get_replay(camera_id: str, request: Request):
-#     return await get_images_within(camera_id, request, hours=24)
-
 # Save files under "json" folder
 OUTPUT_DIR = "/app/ReplayTheDay/json"
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 # Mount the folder so it’s accessible at /json
-# Mount it for public access
 app.mount("/ReplayTheDay/json", StaticFiles(directory=OUTPUT_DIR), name="replay_json")
-
-# @app.get("/ReplayTheDay/archive/{camera_id}")
-# async def get_replay(camera_id: str, request: Request):
-#     results = await get_images_within(camera_id, request, hours=24)
-
-#     # Convert to JSON-compatible format
-#     encoded_results = jsonable_encoder(results)
-
-#     # Ensure "json" folder exists
-#     os.makedirs(OUTPUT_DIR, exist_ok=True)
-
-#     # Full file path
-#     file_path = os.path.join(OUTPUT_DIR, f"{camera_id}.json")
-
-#     # Write JSON to the file
-#     with open(file_path, "w", encoding="utf-8") as f:
-#         json.dump(encoded_results, f, indent=4)
-
-#     return JSONResponse({"status": "success", "file_path": file_path})
-
-@app.get("/ReplayTheDay/archive/{camera_id}")
-async def get_replay(camera_id: str, request: Request):
-    results = await get_images_within(camera_id, request, hours=24)
-
-    # Convert results into JSON-safe format
-    encoded_results = jsonable_encoder(results)
-
-    # Extract numeric IDs from watermarked_pvc_path
-    ids = []
-    for item in encoded_results:
-        watermarked_path = item.get("watermarked_pvc_path", "")
-        filename = os.path.basename(watermarked_path)  # e.g., "1752692963163.jpg"
-        file_id, _ = os.path.splitext(filename)  # split "1752692963163" and ".jpg"
-        ids.append(file_id)
-
-    # Create the JSON file with only IDs
-    file_path = os.path.join(OUTPUT_DIR, f"{camera_id}.json")
-    with open(file_path, "w", encoding="utf-8") as f:
-        json.dump(ids, f, indent=4)
-
-    return JSONResponse({
-        "status": "success",
-        "file_path": f"/ReplayTheDay/json/{camera_id}.json",
-        "count": len(ids)
-    })
-
 
 
 async def get_images_within_test(camera_id: str, request: Request, hours: int = 24) -> list:
