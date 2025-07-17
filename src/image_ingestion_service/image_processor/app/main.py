@@ -416,6 +416,7 @@ async def handle_image_message(db_pool: any, filename: str, body: bytes, timesta
     # Metadata: camera_id + timestamp
     camera_id = filename.split("_")[0].split('.')[0]
     # timestamp = datetime.utcnow()
+    dt = datetime.strptime(timestamp, "%Y%m%d%H%M")
     # milliseconds = int(timestamp.timestamp() * 1000)
 
     original_pvc_path = save_original_image_to_pvc(camera_id, body)
@@ -446,4 +447,4 @@ async def handle_image_message(db_pool: any, filename: str, body: bytes, timesta
         await conn.execute("""
             INSERT INTO image_index (camera_id, original_pvc_path, watermarked_pvc_path, original_s3_path, watermarked_s3_path, timestamp)
             VALUES ($1, $2, $3, $4, $5, $6)
-        """, camera_id, original_pvc_path, watermarked_pvc_path, original_s3_path, watermarked_s3_path, timestamp)
+        """, camera_id, original_pvc_path, watermarked_pvc_path, original_s3_path, watermarked_s3_path, dt)
