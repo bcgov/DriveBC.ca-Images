@@ -1,3 +1,5 @@
+from io import BytesIO
+import json
 import logging
 from math import floor
 import os
@@ -6,6 +8,8 @@ import sys
 from typing import Optional
 from click import wrap_text
 from fastapi import FastAPI, Request
+from fastapi.encoders import jsonable_encoder
+from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel
 import boto3
 import asyncio
@@ -80,6 +84,7 @@ app.add_middleware(
 app.mount("/static/images", StaticFiles(directory="/app/app/images/webcams"), name="static-images")
 
 
+
 class ImageMeta(BaseModel):
     camera_id: str
     original_pvc_path: Optional[str] = None
@@ -128,6 +133,31 @@ async def get_images_within(camera_id: str, request: Request, hours: int = 24) -
 
     return results
 
+# Save files under "json" folder
+OUTPUT_DIR = "/app/ReplayTheDay/json"
+os.makedirs(OUTPUT_DIR, exist_ok=True)
+
+# Mount the folder so it’s accessible at /json
+app.mount("/ReplayTheDay/json", StaticFiles(directory=OUTPUT_DIR), name="replay_json")
+
+
+async def get_images_within_test(camera_id: str, request: Request, hours: int = 24) -> list:
+    await ready_event.wait()
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
+    db_pool = request.app.state.db_pool
+    index_db = await load_index_from_db(db_pool)
+
+    results = [
+        ImageMeta(**entry) for entry in index_db
+        if entry["camera_id"] == camera_id and entry["timestamp"] >= cutoff
+    ]
+    return results
+
+# Endpoint for timelaps (30 days)
+@app.get("/Timelapse/archive/{camera_id}")
+async def get_timelaps(camera_id: str, request: Request):
+    return await get_images_within(camera_id, request, hours=30 * 24)
+
 # Endpoint for replay the day
 @app.get("/api/replay/{camera_id}")
 async def get_replay(camera_id: str, request: Request):
@@ -167,8 +197,9 @@ async def purge_old_images_periodically(db_pool):
     while True:
         try:
             print(f"[{datetime.now(timezone.utc)}] Starting purge task...")
-            await purge_old_pvc_images(db_pool, age="1 minutes")
-            await purge_old_s3_images(db_pool, age="2 minutes")
+            purge_pvc_age = os.getenv("PURGE_PVC_AGE", "24 hours")
+            await purge_old_pvc_images(db_pool, age=f"{purge_pvc_age} hours")
+            await purge_old_s3_images(db_pool, age=f"{purge_pvc_age} days")
         except Exception as e:
             print(f"Error during purge: {e}")
         await asyncio.sleep(PURGE_INTERVAL_SECONDS)

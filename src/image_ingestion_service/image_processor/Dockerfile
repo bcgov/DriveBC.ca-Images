@@ -14,6 +14,7 @@ RUN apt-get update && \
 
 WORKDIR /app
 
+
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
@@ -28,6 +29,10 @@ RUN mkdir -p /app/app/images/webcams/originals && \
     chown -R appuser:appgroup /app/app/images/webcams/originals && \
     chown -R appuser:appgroup /app/app/images/webcams/watermarked && \
     chmod -R 775 /app/app/images/webcams
+
+RUN mkdir -p /app/ReplayTheDay/json && \
+    chown -R appuser:appgroup /app/ReplayTheDay/json && \
+    chmod -R 775 /app/ReplayTheDay/json
 
 
 # Switch to non-root user
