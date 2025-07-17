@@ -2,7 +2,7 @@
 FROM node:18 AS builder
 WORKDIR /app
 COPY app/ app/
-RUN npm install
+RUN npm install --ignore-scripts
 RUN npm run build
 
 # Stage 2: serve with nginx
