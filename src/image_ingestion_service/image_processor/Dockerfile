@@ -30,7 +30,10 @@ RUN mkdir -p /app/app/images/webcams/originals && \
     chown -R appuser:appgroup /app/app/images/webcams/watermarked && \
     chmod -R 775 /app/app/images/webcams
 
-RUN mkdir -p /app/ReplayTheDay/json && chmod 777 /app/ReplayTheDay/json
+RUN mkdir -p /app/ReplayTheDay/json && \
+    chown -R appuser:appgroup /app/ReplayTheDay/json && \
+    chmod -R 775 /app/ReplayTheDay/json
+
 
 # Switch to non-root user
 USER appuser
