@@ -335,12 +335,12 @@ def save_original_image_to_s3(camera_id: str, image_bytes: bytes):
     logger.info(f"Origianal image saved to S3 at {key}")
     return original_s3_path
 
-def save_watermarked_image_to_pvc(camera_id: str, image_bytes: bytes, milliseconds: int):  
+def save_watermarked_image_to_pvc(camera_id: str, image_bytes: bytes, timestamp: str):  
     os.makedirs(os.path.dirname(f'{PVC_WATERMARKED_PATH}'), exist_ok=True)
 
     save_dir = os.path.join(PVC_WATERMARKED_PATH, camera_id)
     os.makedirs(save_dir, exist_ok=True)
-    filename = f"{milliseconds}.jpg"
+    filename = f"{timestamp}.jpg"
     filepath = os.path.join(save_dir, filename)
 
     try:
@@ -353,9 +353,9 @@ def save_watermarked_image_to_pvc(camera_id: str, image_bytes: bytes, millisecon
     watermarked_pvc_path = filepath
     return watermarked_pvc_path
 
-def save_watermarked_image_to_s3(camera_id: str, image_bytes: bytes, milliseconds: int):
+def save_watermarked_image_to_s3(camera_id: str, image_bytes: bytes, timestamp: str):
     ext = "jpg"
-    key = f"watermarked/{camera_id}/{milliseconds}.{ext}"
+    key = f"watermarked/{camera_id}/{timestamp}.{ext}"
     
     try:
         s3_client.put_object(Bucket=S3_BUCKET, Key=key, Body=image_bytes)
