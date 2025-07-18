@@ -11,6 +11,7 @@ from fastapi import FastAPI, HTTPException, Request, logger
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
+import pytz
 import boto3
 import aio_pika
 import asyncio
@@ -115,7 +116,6 @@ class ImageMeta(BaseModel):
 
 
 async def load_index_from_db(db_pool: any):
-    # logger.info("Database connection pool initialized. Fetching records...")
     async with db_pool.acquire() as conn:
         records = await conn.fetch("""
             SELECT camera_id, original_pvc_path, watermarked_pvc_path, original_s3_path, watermarked_s3_path, timestamp
@@ -135,7 +135,6 @@ async def load_index_from_db(db_pool: any):
             }
             for record in records
         ]
-        # logger.info(f"Loaded {len(index_db)} records from the database index.")
         return index_db
 
 async def consume_images(db_pool: any):
@@ -166,12 +165,19 @@ async def consume_images(db_pool: any):
 
         await queue.bind(exchange)
 
+        rows = get_all_from_db()
+        db_data = process_camera_rows(rows)
+        if not db_data:
+            logger.error("No camera data available for watermarking.")
+            return
         async with queue.iterator() as queue_iter:
             async for message in queue_iter:
                 async with message.process():
                     filename = message.headers.get("filename", "unknown.jpg")
-                    timestamp = format_timestamp(message.headers.get("timestamp", "unknown"))
-                    await handle_image_message(db_pool, filename, message.body, timestamp)
+                    camera_id = filename.split("_")[0].split('.')[0]
+                    timestamp_utc = message.headers.get("timestamp", "unknown")
+                    timestamp_local = generate_local_timestamp(db_data, camera_id, timestamp_utc)
+                    await handle_image_message(camera_id, db_data, message.body, timestamp_local, db_pool)
 
     except asyncio.CancelledError:
         logger.info("Image consumer task was cancelled.")
@@ -193,19 +199,6 @@ async def consume_images(db_pool: any):
                 await connection.close()
         except Exception as e:
             logger.warning(f"Error closing connection: {e}")
-
-def format_timestamp(timestamp: str) -> str:
-    try:
-        if timestamp and timestamp != "unknown":
-            dt = datetime.fromisoformat(timestamp)
-
-            # Desired format: YYYYMMDDHHMM
-            timestamp = dt.strftime("%Y%m%d%H%M")
-        else:
-            timestamp = "unknown"
-    except Exception as e:
-        logger.error(f"Error parsing timestamp {timestamp}: {e}")
-    return timestamp  
 
 def process_camera_rows(rows):
     if not rows:
@@ -236,16 +229,7 @@ def get_timezone(webcam):
     tz_name = tf.timezone_at(lat=lat, lng=lon)
     return tz_name if tz_name else 'America/Vancouver'  # Fallback to PST if no timezone found
 
-def watermark(camera_id: str, image_data: bytes):
-    # Load camera data from the database
-    rows = get_all_from_db()
-    db_data = process_camera_rows(rows)
-    if not db_data:
-        logger.error("No camera data available for watermarking.")
-        return
-    webcams = [cam for cam in db_data if cam['id'] == int(camera_id)]
-    webcam = webcams[0] if webcams else None
-    tz = get_timezone(webcam) if webcam else 'America/Vancouver'
+def watermark(webcam: any, image_data: bytes, tz: str, timestamp: str) -> bytes:
     try:
         if image_data is None:
             return
@@ -264,14 +248,10 @@ def watermark(camera_id: str, image_data: bytes):
 
         if webcam.get('is_on'):
             stamped.paste(raw)  # leaves 18 pixel black bar left at bottom
-
-            timestamp = 'Last modification time unavailable'
-            if lastmod is not None:
-                month = lastmod.strftime('%b')
-                day = lastmod.strftime('%d')
-                day = day[1:] if day[:1] == '0' else day  # strip leading zero
-                dt_local = lastmod.astimezone(ZoneInfo(tz))
-                timestamp = f'{month} {day}, {dt_local.strftime("%Y %H:%M:%S %p %Z")}'
+            dt = datetime.strptime(timestamp, "%Y%m%d%H%M")
+            month = dt.strftime('%b')
+            day = dt.strftime('%d')
+            timestamp = f'{month} {day}, {dt.strftime("%Y %H:%M:%S %p %Z")}'
             pen.text((width - 3,  height + 14), timestamp, fill="white",
                      anchor='rs', font=FONT)
 
@@ -302,7 +282,7 @@ def watermark(camera_id: str, image_data: bytes):
         return buffer.getvalue()
 
     except Exception as e:
-        logger.error(f"Error processing image from camer: {camera_id} - {e}")
+        logger.error(f"Error processing image from camer: {e}")
 
 def save_original_image_to_pvc(camera_id: str, image_bytes: bytes):
     # Save original image to PVC, can be overwritten each time
@@ -394,15 +374,13 @@ async def update_replay_json(camera_id: str, db_pool: any):
     ids = []
     for item in encoded_results:
         watermarked_path = item.get("watermarked_pvc_path", "")
-        filename = os.path.basename(watermarked_path)  # e.g., "1752692963163.jpg"
-        file_id, _ = os.path.splitext(filename)  # split "1752692963163" and ".jpg"
+        filename = os.path.basename(watermarked_path)
+        file_id, _ = os.path.splitext(filename)
         ids.append(file_id)
 
     # Create the JSON file with only IDs
     logger.info(f"Updating JSON file for camera {camera_id} with {len(ids)} IDs")
     file_path = os.path.join(OUTPUT_DIR, f"{camera_id}.json")
-    # with open(file_path, "w", encoding="utf-8") as f:
-    #     json.dump(ids, f, indent=4)
 
     async with aiofiles.open(file_path, "w", encoding="utf-8") as f:
         data_str = json.dumps(ids, indent=4)
@@ -416,17 +394,33 @@ async def update_replay_json(camera_id: str, db_pool: any):
     })
 
 
-async def handle_image_message(db_pool: any, filename: str, body: bytes, timestamp: str):
-    # Metadata: camera_id + timestamp
-    camera_id = filename.split("_")[0].split('.')[0]
-    # timestamp = datetime.utcnow()
+def generate_local_timestamp(db_data: list, camera_id: str, timestamp: str):
+    webcams = [cam for cam in db_data if cam['id'] == int(camera_id)]
+    webcam = webcams[0] if webcams else None
+    tz = get_timezone(webcam) if webcam else 'America/Vancouver'
+    # Parse it as UTC datetime
+    utc_dt = datetime.strptime(timestamp, "%Y%m%d%H%M")
+    utc_dt = utc_dt.replace(tzinfo=pytz.utc)
+
+    # Convert to PDT (America/Los_Angeles)
+    local_tz = pytz.timezone(tz)
+    local_dt = utc_dt.astimezone(local_tz)
+    # Format back to string
+    timestamp = local_dt.strftime("%Y%m%d%H%M")
+    return timestamp
+
+
+async def handle_image_message(camera_id: str, db_data: any, body: bytes, timestamp: str, db_pool: any):
     dt = datetime.strptime(timestamp, "%Y%m%d%H%M")
-    # milliseconds = int(timestamp.timestamp() * 1000)
 
     original_pvc_path = save_original_image_to_pvc(camera_id, body)
     original_s3_path = save_original_image_to_s3(camera_id, body)
 
-    image_bytes = watermark(camera_id, body)
+    webcams = [cam for cam in db_data if cam['id'] == int(camera_id)]
+    webcam = webcams[0] if webcams else None
+    tz = get_timezone(webcam) if webcam else 'America/Vancouver'
+
+    image_bytes = watermark(webcam, body, tz, timestamp)
 
     watermarked_pvc_path = save_watermarked_image_to_pvc(camera_id, image_bytes, timestamp)
     watermarked_s3_path = save_watermarked_image_to_s3(camera_id, image_bytes, timestamp)
@@ -444,7 +438,6 @@ async def handle_image_message(db_pool: any, filename: str, body: bytes, timesta
 
     # update json file for replay the day
     await update_replay_json(camera_id, db_pool)
-
 
     # Insert record into DB
     async with db_pool.acquire() as conn:

@@ -114,12 +114,12 @@ services:
       timeout: 5s
       retries: 5
 
-  frontend:
-      build: ./frontend
-      ports:
-        - "3000:80"  # maps localhost:3000 to nginx serving frontend
-      depends_on:
-        - image-provider
+  # frontend:
+  #     build: ./frontend
+  #     ports:
+  #       - "3000:80"  # maps localhost:3000 to nginx serving frontend
+  #     depends_on:
+  #       - image-provider
 
 
 volumes:

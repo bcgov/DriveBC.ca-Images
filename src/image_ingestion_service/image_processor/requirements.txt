@@ -10,3 +10,4 @@ timezonefinder
 sqlalchemy
 pyodbc
 asyncpg
+pytz
