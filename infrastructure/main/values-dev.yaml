@@ -42,6 +42,9 @@ backend:
         memory: 50Mi
       limits:
         memory: 100Mi
+    env:
+      variables:
+        PYTHON_LOG_LEVEL: INFO
   vault:
     secretName: dev-image-ingestion  # This is the name of the secret in vault that contains the environment variables for the app
     authPath: auth/k8s-gold # Must match cluster. Use one of: k8s-silver, k8s-gold, k8s-golddr, k8s-emerald

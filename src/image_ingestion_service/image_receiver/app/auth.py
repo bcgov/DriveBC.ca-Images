@@ -2,8 +2,6 @@ import asyncio
 from typing import Optional
 from fastapi import Request, Header, HTTPException, Response, status, Depends
 import logging
-import sys
-import os
 import json
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 import secrets
@@ -11,6 +9,7 @@ from .db import get_all_from_db
 from prometheus_client import Counter
 import ipaddress
 import re
+import os
 
 security = HTTPBasic()
 
@@ -20,12 +19,6 @@ LOCATION_USER_PASS_MAPPING = json.loads(os.getenv("LOCATION_USER_PASS_MAPPING", 
 CAMERA_LOCATION_MAPPING = json.loads(os.getenv("CAMERA_LOCATION_MAPPING", "{}"))
 SCRIPTED_IP_MAPPING = json.loads(os.getenv("SCRIPTED_IP_MAPPING", "{}"))
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(message)s",
-    handlers=[logging.StreamHandler(sys.stdout)]
-)
 logger = logging.getLogger(__name__)
 
 # Shared cache
@@ -81,15 +74,15 @@ def normalize_and_validate_ip(ip: str) -> str:
 async def update_credentials_periodically():
     while True:
         try:
-            logger.info("Refreshing credentials from DB...")
+            logger.info("Refreshing camera details from DB...")
             creds = get_all_from_db()
 
             if creds:
                 CREDENTIAL_CACHE.clear()
                 CREDENTIAL_CACHE.extend(creds)
-                logger.info("Updated %d credentials.", len(creds))
+                logger.info("Updated %d camera details.", len(creds))
         except Exception as e:
-            logger.error(f"Error updating credentials: {e}")
+            logger.error(f"Error updating camera details: {e}")
         await asyncio.sleep(30)
 
 def start_credential_refresh_task():
@@ -97,15 +90,14 @@ def start_credential_refresh_task():
 
 def get_data_from_db():
     try:
-        logger.info("Initializing credentials from DB...")
+        logger.info("Initializing camera details from DB...")
         creds = get_all_from_db()
 
         if creds:
             CREDENTIAL_CACHE.clear()
             CREDENTIAL_CACHE.extend(creds)
-            # logger.info(f"Initialized {len(creds)} credentials.") # Commented out to reduce log verbosity
     except Exception as e:
-        logger.error(f"Error initializing credentials: {e}")
+        logger.error(f"Error initializing camera details: {e}")
 
 def validate_id_and_get_camera_record(data: list, camera_id: str) -> dict:
     """
@@ -125,10 +117,14 @@ def validate_id_and_get_camera_record(data: list, camera_id: str) -> dict:
     raise ValueError("Unauthorized or unknown camera ID")
 
 def get_client_ip(request: Request) -> str:
-    x_forwarded_for = request.headers.get("X-Forwarded-For")
-    if x_forwarded_for:
-        return x_forwarded_for.split(",")[0].strip()
-    return request.client.host
+    forwarded = request.headers.get("forwarded")
+    if forwarded:
+        first = forwarded.split(",")[0].strip() 
+        for_part = first.split(";")[0]
+        if for_part.lower().startswith("for="):
+            return for_part[4:]
+        return for_part
+    return request.client.host if request.client else "unknown"
 
 def verify_credentials(credentials: HTTPBasicCredentials, expected_creds: dict) -> bool:
     return (
@@ -191,10 +187,15 @@ async def authenticate_request(
             break
 
     if is_scripted_request:
-    # Enforce HTTPS for scripted uploads
-        proto = request.headers.get("x-forwarded-proto", "").lower()
+        # Enforce HTTPS for scripted uploads using Forwarded header
+        forwarded = request.headers.get("forwarded", "")
+        proto = ""
+        for part in forwarded.split(";"):
+            if part.strip().startswith("proto="):
+                proto = part.strip().split("=")[1].lower()
+                break
         if proto != "https":
-            logger.warning("Scripted camera %s attempted upload over non-HTTPS protocol: %s", camera_id, proto)
+            logger.warning("Scripted camera %s attempted upload over non-HTTPS protocol: %s", camera_id, proto or "missing")
             raise HTTPException(status_code=403, detail="Scripted uploads must use HTTPS")
         scripted_region_key = "Scripted"
         expected_creds_scripted = LOCATION_USER_PASS_MAPPING.get(scripted_region_key)
