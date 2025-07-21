@@ -19,7 +19,7 @@ async def upload_to_ftp(image_bytes: bytes, filename: str, camera_id: str, targe
     try:
         await ftp_client.connect(host, port)
         await ftp_client.login(user, password)
-        logger.info("Connected to FTP server %s:%s as user %s for camera_id=%s", host, port, user, camera_id)
+        logger.debug(f"Connected to FTP server {host}:{port} as user {user} for camera_id={camera_id}")
 
         # Build directory path manually
         path_segments = target_ftp_path.strip("/").split("/")
@@ -51,7 +51,7 @@ async def upload_to_ftp(image_bytes: bytes, filename: str, camera_id: str, targe
         return True
 
     except Exception as e:
-        logger.error("Error during FTP operation for camera_id=%s: %s", camera_id, str(e), exc_info=True)
+        logger.error(f"FTP error for camera_id={camera_id}: %s", str(e), exc_info=True)
         raise
 
     finally:
