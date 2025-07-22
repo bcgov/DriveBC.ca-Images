@@ -93,12 +93,12 @@ def validate_id_and_get_camera_record(data: list, camera_id: str) -> dict:
     try:
         camera_id_int = int(camera_id)
     except ValueError:
-        logger.info(f"Invalid camera ID format: {camera_id}. Must be an integer.")
+        logger.warning(f"Invalid camera ID format: {camera_id}. Must be an integer.")
         raise ValueError("Unauthorized or unknown camera ID")
     for record in data:
         if record.get("ID") == camera_id_int:
             return record
-    logger.info(f"No matching record found for camera ID: {camera_id}")
+    logger.warning(f"No matching record found for camera ID: {camera_id}")
     raise ValueError("Unauthorized or unknown camera ID")
 
 # -------------------- IP & Protocol Extraction --------------------
@@ -143,7 +143,7 @@ def get_camera_record_and_validate(camera_id: str, db_data: list) -> dict:
     try:
         return validate_id_and_get_camera_record(db_data, camera_id)
     except ValueError as e:
-        logger.info(f"Validation Error for camera {camera_id}: {e}")
+        logger.warning(f"Validation Error for camera {camera_id}: {e}")
         raise HTTPException(status_code=400, detail="Unauthorized or unknown camera ID")
 
 # -------------------- IP Authorization --------------------
@@ -154,7 +154,7 @@ def verify_ip_or_raise(client_ip: str, expected_ip: str, camera_id: str):
             if expected_ip.endswith("."):
                 logger.info(f"Partial IP mismatch for {camera_id}: expected prefix {expected_ip}, got {client_ip}")
             else:
-                logger.info(f"IP mismatch for {camera_id}: expected {expected_ip}, got {client_ip}")
+                logger.warning(f"IP mismatch for {camera_id}: expected {expected_ip}, got {client_ip}")
             record_ip_failure()
             raise HTTPException(status_code=401, detail="IP mismatch")
         record_ip_success()
@@ -165,11 +165,11 @@ def verify_ip_or_raise(client_ip: str, expected_ip: str, camera_id: str):
 def verify_creds_or_raise(credentials: HTTPBasicCredentials, expected_creds: dict, camera_id: str):
     """Check credentials, log and raise if invalid."""
     if not expected_creds:
-        logger.info(f"No credentials configured for camera {camera_id}.")
+        logger.warning(f"No credentials configured for camera {camera_id}.")
         record_auth_failure()
         raise HTTPException(status_code=401, detail="Credential mismatch")
     if not verify_credentials(credentials, expected_creds):
-        logger.info(f"Invalid credentials for camera {camera_id}.")
+        logger.warning(f"Invalid credentials for camera {camera_id}.")
         record_auth_failure()
         raise HTTPException(status_code=401, detail="Invalid credentials")
     record_auth_success()

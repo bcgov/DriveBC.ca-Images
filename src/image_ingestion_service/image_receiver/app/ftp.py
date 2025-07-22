@@ -36,7 +36,7 @@ async def upload_to_ftp(image_bytes: bytes, filename: str, camera_id: str, targe
 
         # Only change directory *after* structure is created
         await ftp_client.change_directory(f"/{target_ftp_path.strip('/')}")
-        logger.info("Changed to FTP directory: /%s", target_ftp_path.strip("/"))
+        logger.debug("Changed to FTP directory: /%s", target_ftp_path.strip("/"))
 
         # Write image bytes to a temporary file
         tmp_dir = tempfile.gettempdir()

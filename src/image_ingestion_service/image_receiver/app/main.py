@@ -173,14 +173,14 @@ async def receive_image(request: Request, auth_data=Depends(authenticate_request
         logger.warning(f"Client disconnected before sending full image for camera_id={camera_id}. Proceeding with partial data.")
 
     if not image_bytes:
-        logger.info(f"No image data received for camera_id={camera_id}")
+        logger.warning(f"No image data received for camera_id={camera_id}")
         record_processing_failure()
         return Response(content="No image data received", media_type="text/plain", status_code=400)
 
     # Validate the received image
     valid, error = validate_jpg_image(image_bytes)
     if not valid:
-        logger.info(f"Validation failed for camera_id={camera_id}: {error}")
+        logger.warning(f"Validation failed for camera_id={camera_id}: {error}")
         record_processing_failure()
         return Response(error, media_type="text/plain", status_code=400)
 
@@ -189,7 +189,7 @@ async def receive_image(request: Request, auth_data=Depends(authenticate_request
     ftp_target_filename = auth_data.get("Cam_InternetFTP_Filename")
 
     if not ftp_folder_url or not ftp_target_filename:
-        logger.info(f"Missing FTP configuration for camera_id={camera_id}")
+        logger.warning(f"Missing FTP configuration for camera_id={camera_id}")
         record_processing_failure()
         return Response(content="Missing FTP configuration", media_type="text/plain", status_code=200)
 
@@ -203,7 +203,7 @@ async def receive_image(request: Request, auth_data=Depends(authenticate_request
         await send_to_rabbitmq(image_bytes, rabbitmq_filename, camera_id=camera_id)
         logger.info(f"Pushed to RabbitMQ for camera_id={camera_id} with filename={rabbitmq_filename}")
     except Exception as e:
-        logger.info(f"Push to RabbitMQ failed for camera_id={camera_id}: %s", str(e), exc_info=True)
+        logger.error(f"Push to RabbitMQ failed for camera_id={camera_id}: %s", str(e), exc_info=True)
         record_processing_failure()
         return Response(content="Push to RabbitMQ failed", media_type="text/plain", status_code=200)
 
@@ -216,12 +216,12 @@ async def receive_image(request: Request, auth_data=Depends(authenticate_request
             target_ftp_path=ftp_path
         )
         if not result:
-            logger.info(f"FTP upload failed for camera_id={camera_id} to path {ftp_path}/{ftp_target_filename}")
+            logger.error(f"FTP upload failed for camera_id={camera_id} to path {ftp_path}/{ftp_target_filename}")
             record_processing_failure()
             return Response(content="FTP upload failed", media_type="text/plain", status_code=200)
         logger.info(f"Pushed to FTP server for camera_id={camera_id} to path {ftp_path}/{ftp_target_filename}")
     except Exception as e:
-        logger.info(f"FTP push failed for camera_id={camera_id}: %s", str(e), exc_info=True)
+        logger.error(f"FTP push failed for camera_id={camera_id}: %s", str(e), exc_info=True)
         record_processing_failure()
         return Response(content="FTP push failed", media_type="text/plain", status_code=200)
 
