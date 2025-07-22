@@ -5,6 +5,7 @@ import secrets
 import ipaddress
 import re
 import os
+import ast
 from typing import Optional
 
 from fastapi import Request, Header, HTTPException, Response, status, Depends
@@ -13,14 +14,45 @@ from prometheus_client import Counter
 
 from .db import get_all_from_db
 
+# -------------------- Logger Setup --------------------
+logger = logging.getLogger(__name__)
+
+# -------------------- Helper Function to Load Mapping --------------------
+def load_mapping_from_env(env_var: str, default: dict = None) -> dict:
+    default = default or {}
+    raw = os.getenv(env_var)
+    logger.info(f"RAW {env_var}: {repr(raw)}")
+    if not raw:
+        return default
+
+    try:
+        # First attempt: standard JSON
+        parsed = json.loads(raw)
+
+        # Handle double-encoded JSON (e.g., a JSON string inside a JSON string)
+        if isinstance(parsed, str):
+            parsed = json.loads(parsed)
+
+        if isinstance(parsed, dict):
+            return parsed
+    except json.JSONDecodeError as e:
+        logger.warning(f"JSON decoding failed for {env_var}: {e}")
+
+        try:
+            # Second attempt: Python dict literal
+            parsed = ast.literal_eval(raw)
+            if isinstance(parsed, dict):
+                return parsed
+        except Exception as e2:
+            logger.error(f"ast.literal_eval failed for {env_var}: {e2}")
+
+    return default
+
 # -------------------- Authentication Setup --------------------
 security = HTTPBasic()
 
-# Load camera-specific credentials and IP mappings from environment variables
-LOCATION_USER_PASS_MAPPING = json.loads(os.getenv("LOCATION_USER_PASS_MAPPING", "{}"))
-SCRIPTED_IP_MAPPING = json.loads(os.getenv("SCRIPTED_IP_MAPPING", "{}"))
-
-logger = logging.getLogger(__name__)
+LOCATION_USER_PASS_MAPPING = load_mapping_from_env("LOCATION_USER_PASS_MAPPING")
+SCRIPTED_IP_MAPPING = load_mapping_from_env("SCRIPTED_IP_MAPPING")
 
 # In-memory cache of credentials fetched from the database
 CREDENTIAL_CACHE = []
