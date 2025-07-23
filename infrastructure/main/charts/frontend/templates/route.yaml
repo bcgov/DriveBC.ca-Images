@@ -5,9 +5,9 @@ metadata:
   labels: {{ include "app.labels" . | nindent 4 }}
   annotations:
     haproxy.router.openshift.io/rate-limit-connections: "true"
-    haproxy.router.openshift.io/rate-limit-connections.concurrent-tcp: "20"
-    haproxy.router.openshift.io/rate-limit-connections.rate-tcp: "50"
-    haproxy.router.openshift.io/rate-limit-connections.rate-http: "20"
+    haproxy.router.openshift.io/rate-limit-connections.concurrent-tcp: "30"
+    haproxy.router.openshift.io/rate-limit-connections.rate-tcp: "75"
+    haproxy.router.openshift.io/rate-limit-connections.rate-http: "50"
     haproxy.router.openshift.io/disable_cookies: "true"
 spec:
   host: {{ .Values.route.host }}
@@ -21,5 +21,31 @@ spec:
     termination: edge
     insecureEdgeTerminationPolicy: Allow
 
-
-
+---
+{{- if .Values.route.vanityurl }}
+{{- $routeExists := lookup "route.openshift.io/v1" "Route" .Release.Namespace (printf "%s-vanityurl" (include "app.fullname" .)) }}
+{{- if not $routeExists }}
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: {{ template "app.fullname" . }}-vanityurl
+  labels: {{ include "app.labels" . | nindent 4 }}
+  annotations:
+    haproxy.router.openshift.io/rate-limit-connections: "true"
+    haproxy.router.openshift.io/rate-limit-connections.concurrent-tcp: "30"
+    haproxy.router.openshift.io/rate-limit-connections.rate-tcp: "75"
+    haproxy.router.openshift.io/rate-limit-connections.rate-http: "50"
+    haproxy.router.openshift.io/disable_cookies: "true"
+    helm.sh/resource-policy: keep
+spec:
+  to:
+    kind: Service
+    name: {{ template "app.fullname" . }}
+  port:
+    targetPort: http
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Allow
+  host: {{ .Values.route.vanityurlhost  }}
+{{- end }}
+{{- end }}
