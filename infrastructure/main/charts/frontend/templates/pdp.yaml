@@ -8,5 +8,6 @@ spec:
   minAvailable: {{ .Values.podDisruptionBudget.minAvailable }}
   selector:
     matchLabels:
-      app.kubernetes.io/name: {{ template "app.fullname" . }}
+      app.kubernetes.io/instance: {{ template "app.name" . }}
+      app.kubernetes.io/name: {{ template "app.name" . }}
 {{- end }}

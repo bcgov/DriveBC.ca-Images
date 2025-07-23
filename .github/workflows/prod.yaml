@@ -1,4 +1,4 @@
-name: 4. Promote from UAT to Prod
+name: 3. Promote from UAT to Prod
 
 on: 
   release:
@@ -32,13 +32,21 @@ jobs:
   addDockerTag:
     needs: [tag]
     runs-on: ubuntu-latest
-    name: Add latest-prod Tag
+    name: Add latest-prod Tags
     steps:
-    - name: Add latest-prod tag to webapp image
+    - name: Add latest-prod tag to frontend image
       uses: shrink/actions-docker-registry-tag@v4
       with:
-        registry: ghcr.io
-        repository: bcgov/ride-webapp
+        registry: ${{ env.REGISTRY }}
+        repository: bcgov/${{ env.FRONTEND_IMAGE_NAME }}
+        target: ${{ needs.tag.outputs.tag }}
+        tags: |
+          latest-prod
+    - name: Add latest-prod tag to backend image
+      uses: shrink/actions-docker-registry-tag@v4
+      with:
+        registry: ${{ env.REGISTRY }}
+        repository: bcgov/${{ env.BACKEND_IMAGE_NAME }}
         target: ${{ needs.tag.outputs.tag }}
         tags: |
           latest-prod
@@ -49,7 +57,6 @@ jobs:
     name: Deploy Latest Images to OpenShift Gold
     environment:
       name: prod
-      url: https://prod-ride.apps.gold.devops.gov.bc.ca
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -76,7 +83,6 @@ jobs:
     name: Deploy Latest Images to OpenShift GoldDR
     environment:
       name: prod
-      url: https://prod-ride.apps.golddr.devops.gov.bc.ca
     steps:
     - name: Checkout code
       uses: actions/checkout@v4

@@ -26,7 +26,7 @@ frontend:
   route:
     host: uat-image-ingestion-service.apps.gold.devops.gov.bc.ca # Hostname for the route
     vanityurl: true #Set to true if you want to use a vanity URL. This will require a certificate in the cluster (set manually) and dns entry
-    vanityurlhost: dbc-api.th.gov.bc.ca  #The path to use for the vanity URL
+    vanityurlhost: uat-dbc-api.th.gov.bc.ca  #The path to use for the vanity URL
   podDisruptionBudget: 
     enabled: true # If you have more than 1 replica, you can set this to true.
     minAvailable: 1

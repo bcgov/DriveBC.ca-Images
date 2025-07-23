@@ -71,3 +71,23 @@ Test Basic Authentication Behavior:
 
 Test incorrect image format or file:
 - Replace the image with a .txt file or a .png file to verify the image-receiver container has a correct response.
+
+## Github Release Process
+We use Github Actions with Helm to deploy updates to the three environments, dev, uat and prod. Here is how it works for each.
+
+### Dev
+You have two options
+1. Any push to main will automatically trigger a deployment to dev
+1. You can manually trigger a deployment by going to the action, `Run workflow` and then selecting the branch you want to build and push to the dev environment
+
+### UAT
+This one is manually triggered. Go to the `2. Build & Deploy to UAT` then `Run workflow`. Once you do that it will automatically create a `rc` tag that auto increments. It then deploys that to the UAT environment in OpenShift for testing.
+
+### Prod
+This workflow is triggered through the 'Releases' section of Github action.
+1. Go to releases: https://github.com/bcgov/DriveBC.ca-Images/releases
+1. Click `Draft a new release`
+1. Select the tag you want to release
+1. Give the release a title (ie `0.0.1`)
+1. Click `Generate release notes` if you like
+1. Click `Publish release` which will automatically trigger the workflow to deploy that tag you selected to prod.
