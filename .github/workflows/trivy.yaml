@@ -13,7 +13,7 @@ permissions:
 
 jobs:
   imagescan-ingestion-service-frontend:
-    name: Scan latest Image Ingestion Service Image
+    name: Scan latest Image Ingestion Frontend Image
     runs-on: ubuntu-latest
     steps:
       - name: Run Trivy vulnerability scanner
@@ -34,7 +34,7 @@ jobs:
         with:
           sarif_file: 'trivy-results.sarif'
   imagescan-ingestion-service-backend:
-    name: Scan latest Image Ingestion Service Image
+    name: Scan latest Image Ingestion Backend Image
     runs-on: ubuntu-latest
     steps:
       - name: Run Trivy vulnerability scanner
