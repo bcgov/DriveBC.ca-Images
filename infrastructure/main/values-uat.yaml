@@ -1,5 +1,5 @@
-fullnameOverride: dev-image-ingestion-service
-nameOverride: dev-image-ingestion-service
+fullnameOverride: uat-image-ingestion-service
+nameOverride: uat-image-ingestion-service
 
 # These global values are used by all components of the application.
 global:
@@ -9,7 +9,7 @@ global:
   release: # This is set by Github actions for the prod release. Do not change this value.
 
 frontend:
-  replicaCount: 1 
+  replicaCount: 3 
   image:
     repository: ghcr.io/bcgov/drivebc.ca-images-frontend
     tag: latest
@@ -22,18 +22,18 @@ frontend:
         memory: 100Mi
     env:
       variables:
-        ENVIRONMENT: dev
+        ENVIRONMENT: uat
   route:
-    host: dev-image-ingestion-service.apps.gold.devops.gov.bc.ca # Hostname for the route
+    host: uat-image-ingestion-service.apps.gold.devops.gov.bc.ca # Hostname for the route
     vanityurl: true #Set to true if you want to use a vanity URL. This will require a certificate in the cluster (set manually) and dns entry
-    vanityurlhost: dev-dbc-api.th.gov.bc.ca  #The path to use for the vanity URL
+    vanityurlhost: dbc-api.th.gov.bc.ca  #The path to use for the vanity URL
   podDisruptionBudget: 
-    enabled: false # If you have more than 1 replica, you can set this to true.
+    enabled: true # If you have more than 1 replica, you can set this to true.
     minAvailable: 1
 
 
 backend:
-  replicaCount: 1
+  replicaCount: 3
   image:
     repository: ghcr.io/bcgov/drivebc.ca-images-backend
     tag: latest
@@ -48,10 +48,10 @@ backend:
       variables:
         PYTHON_LOG_LEVEL: INFO
   vault:
-    secretName: dev-image-ingestion  # This is the name of the secret in vault that contains the environment variables for the app
+    secretName: uat-image-ingestion  # This is the name of the secret in vault that contains the environment variables for the app
     authPath: auth/k8s-gold # Must match cluster. Use one of: k8s-silver, k8s-gold, k8s-golddr, k8s-emerald
 
 
   podDisruptionBudget: 
-    enabled: false # If you have more than 1 replica, you can set this to true.
+    enabled: true # If you have more than 1 replica, you can set this to true.
     minAvailable: 1

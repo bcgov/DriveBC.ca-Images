@@ -1,0 +1,100 @@
+name: 4. Promote from UAT to Prod
+
+on: 
+  release:
+    types: [published]
+
+permissions: 
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+  BACKEND_IMAGE_NAME: ${{ github.repository }}-backend
+  FRONTEND_IMAGE_NAME: ${{ github.repository }}-frontend
+
+jobs:
+  tag:
+    runs-on: ubuntu-latest
+    name: Create Tag Variable
+    timeout-minutes: 1
+    outputs:
+      tag: ${{ steps.create_tag.outputs.tag }}
+
+    steps:
+      - name: Set the tag variable
+        id: create_tag
+        run: |
+          vtag=${{ github.ref_name }}
+          echo "tag=${{ github.ref_name }}" >> $GITHUB_OUTPUT
+
+  #This job adds 'latest-prod' docker tags to the existing image in Github Packages so it's always clear which image is current for a particular environment
+  addDockerTag:
+    needs: [tag]
+    runs-on: ubuntu-latest
+    name: Add latest-prod Tag
+    steps:
+    - name: Add latest-prod tag to webapp image
+      uses: shrink/actions-docker-registry-tag@v4
+      with:
+        registry: ghcr.io
+        repository: bcgov/ride-webapp
+        target: ${{ needs.tag.outputs.tag }}
+        tags: |
+          latest-prod
+
+  update-openShift-gold:
+    needs: [tag]
+    runs-on: ubuntu-latest
+    name: Deploy Latest Images to OpenShift Gold
+    environment:
+      name: prod
+      url: https://prod-ride.apps.gold.devops.gov.bc.ca
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    - name: Install CLI tools from OpenShift Mirror
+      uses: redhat-actions/openshift-tools-installer@v1
+      with:
+        oc: "4"
+        skip_cache: true
+      
+    - name: Authenticate and set context
+      uses: redhat-actions/oc-login@v1
+      with:
+        openshift_server_url: ${{ vars.OPENSHIFT_GOLD_SERVER }}
+        openshift_token: ${{ secrets.OPENSHIFT_GOLD_TOKEN }}
+        namespace: ${{ vars.OPENSHIFT_NAMESPACE }}
+        insecure_skip_tls_verify: false
+    - name: Helm upgrade on OpenShift Gold Environment
+      run: |
+        helm upgrade prod-image-ingestion-service -f ./infrastructure/main/values-prod.yaml ./infrastructure/main --set frontend.image.tag="${{ needs.tag.outputs.tag }}" --set backend.image.tag="${{ needs.tag.outputs.tag }}"
+
+  update-openshift-golddr:
+    needs: [tag] 
+    runs-on: ubuntu-latest
+    name: Deploy Latest Images to OpenShift GoldDR
+    environment:
+      name: prod
+      url: https://prod-ride.apps.golddr.devops.gov.bc.ca
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install CLI tools from OpenShift Mirror
+      uses: redhat-actions/openshift-tools-installer@v1
+      with:
+        oc: "4"
+        skip_cache: true
+     
+    - name: Authenticate and set context
+      uses: redhat-actions/oc-login@v1
+      with:
+        openshift_server_url: ${{ vars.OPENSHIFT_GOLDDR_SERVER }}
+        openshift_token: ${{ secrets.OPENSHIFT_GOLDDR_TOKEN }}
+        namespace: ${{ vars.OPENSHIFT_NAMESPACE }}
+        insecure_skip_tls_verify: false
+
+    - name: Helm upgrade on OpenShift GoldDR Environment
+      run: |
+        helm upgrade prod-image-ingestion-service -f ./infrastructure/main/values-prod.yaml -f ./infrastructure/main/values-prod-dr.yaml ./infrastructure/main --set frontend.image.tag="${{ needs.tag.outputs.tag }}" --set backend.image.tag="${{ needs.tag.outputs.tag }}"

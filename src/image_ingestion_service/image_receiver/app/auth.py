@@ -199,11 +199,19 @@ def verify_creds_or_raise(credentials: HTTPBasicCredentials, expected_creds: dic
     if not expected_creds:
         logger.warning(f"No credentials configured for camera {camera_id}.")
         record_auth_failure()
-        raise HTTPException(status_code=401, detail="Credential mismatch")
+        raise HTTPException(
+            status_code=401,
+            detail="Credential mismatch",
+            headers={"WWW-Authenticate": "Basic"},
+        )
     if not verify_credentials(credentials, expected_creds):
         logger.warning(f"Invalid credentials for camera {camera_id}.")
         record_auth_failure()
-        raise HTTPException(status_code=401, detail="Invalid credentials")
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid credentials",
+            headers={"WWW-Authenticate": "Basic"},
+        )
     record_auth_success()
 
 # -------------------- Main Auth Function --------------------
