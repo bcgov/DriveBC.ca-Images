@@ -15,8 +15,10 @@ async def send_to_rabbitmq(image_bytes, filename, camera_id):
     if not rb_exchange_name:
         raise ValueError("Missing environment variable: RABBITMQ_EXCHANGE_NAME")
 
-    # Use timezone-aware UTC timestamp formatted as YYYYMMDDHHMM
-    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d%H%M")
+    timestamp = datetime.now(timezone.utc).isoformat()
+    dt = datetime.fromisoformat(timestamp)
+    # Format as YYYYMMDDHHMMSSfff (fff = milliseconds)
+    formatted_timestamp = dt.strftime("%Y%m%d%H%M%S") + f"{int(dt.microsecond / 1000):03d}"
 
     try:
         connection = await aio_pika.connect_robust(rb_url)
@@ -33,7 +35,7 @@ async def send_to_rabbitmq(image_bytes, filename, camera_id):
                 headers={
                     "camera_id": camera_id,
                     "filename": filename,
-                    "timestamp": timestamp
+                    "timestamp": formatted_timestamp
                 },
                 delivery_mode=aio_pika.DeliveryMode.PERSISTENT
             )
