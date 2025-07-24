@@ -14,12 +14,18 @@ spec:
     metadata:
       labels:
         {{ include "app.selectorLabels" . | nindent 8 }}
+      annotations:
+        prometheus.io/port: '2019'
+        prometheus.io/scrape: 'true'
+        prometheus.io/path: /metrics
     spec:
       containers:
         - name: {{ template "app.fullname" . }}
           image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
           ports:
             - containerPort: 8080
+              protocol: TCP
+            - containerPort: 2019
               protocol: TCP
           env:
             - name: DEPLOYMENT_TAG
