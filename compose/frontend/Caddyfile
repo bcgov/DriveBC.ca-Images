@@ -1,9 +1,13 @@
 {
     auto_https off
     persist_config off
-    storage_clean_interval off
-    storage_check off
+    storage_clean_interval 1d
     metrics
+    admin 0.0.0.0:2019
+
+    servers {
+        trusted_proxies static 10.0.0.0/8
+    }
 }
 
 :8080 {
@@ -31,7 +35,7 @@
 
     route /healthz {
         @internal_only {
-            remote_ip 10.0.0.0/8
+            client_ip 10.0.0.0/8
         }
         respond @internal_only "healthy" 200
         respond "Forbidden" 403
