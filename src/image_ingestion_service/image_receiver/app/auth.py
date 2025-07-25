@@ -264,7 +264,7 @@ async def authenticate_request(
     # Handle regular camera request
     record = get_camera_record_and_validate(camera_id, db_data)
     region = record.get("Cam_LocationsRegion", "").strip()
-    expected_ip = normalize_and_validate_ip(record.get("Cam_MaintenancePublic_IP", "").strip())
+    expected_ip = normalize_and_validate_ip((record.get("Cam_MaintenancePublic_IP") or "").strip())
 
     verify_ip_or_raise(client_ip, expected_ip, camera_id)
     creds = LOCATION_USER_PASS_MAPPING.get(region)
