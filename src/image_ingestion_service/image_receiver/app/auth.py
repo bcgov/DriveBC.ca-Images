@@ -233,6 +233,8 @@ async def authenticate_request(
         raise HTTPException(status_code=500, detail="Camera data unavailable.")
 
     # Extract filename from header to derive camera ID
+    client_ip = get_client_ip(request)
+    client_proto = get_client_proto(request)
     content_disposition = request.headers.get("content-disposition")
     if not content_disposition or "filename=" not in content_disposition:
         logger.warning(f"Request from IP={client_ip} has a missing or malformed Content-Disposition header.")
@@ -241,8 +243,6 @@ async def authenticate_request(
     camera_id = os.path.splitext(filename)[0]
     camera_id = re.sub(r'[\n\r\t]', '', camera_id)[:20]
 
-    client_ip = get_client_ip(request)
-    client_proto = get_client_proto(request)
     logger.info(f"Request from IP={client_ip} for camera={camera_id} using proto={client_proto}")
 
     # Handle scripted IPs (trusted automation)
