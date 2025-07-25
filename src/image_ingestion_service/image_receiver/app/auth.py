@@ -235,6 +235,7 @@ async def authenticate_request(
     # Extract filename from header to derive camera ID
     content_disposition = request.headers.get("content-disposition")
     if not content_disposition or "filename=" not in content_disposition:
+        logger.warning(f"Request from IP={client_ip} has a missing or malformed Content-Disposition header.")
         raise HTTPException(status_code=200, detail="Missing filename in Content-Disposition")
     filename = content_disposition.split("filename=")[-1].strip('"')
     camera_id = os.path.splitext(filename)[0]
