@@ -78,16 +78,16 @@ successful_auth_counter = Counter("successful_auth_total", "Count of successful 
 unsuccessful_auth_counter = Counter("unsuccessful_auth_total", "Count of failed authentications")
 successful_ip_counter = Counter("successful_ip_total", "Count of requests from authorized IPs")
 unsuccessful_ip_counter = Counter("unsuccessful_ip_total", "Count of requests from unauthorized IPs")
-processing_fail_counter = Counter("processing_fail_total", "Count of failed image processing attempts")
-processing_success_counter = Counter("processing_success_total", "Count of successful image processing attempts")
+unsuccessful_processing_counter = Counter("unsuccessful_processing_total", "Count of failed image processing attempts")
+successful_processing_counter = Counter("successful_processing_total", "Count of successful image processing attempts")
 
 # Increment helper functions
 def record_auth_success(): successful_auth_counter.inc()
 def record_auth_failure(): unsuccessful_auth_counter.inc()
 def record_ip_success(): successful_ip_counter.inc()
 def record_ip_failure(): unsuccessful_ip_counter.inc()
-def record_processing_success(): processing_success_counter.inc()
-def record_processing_failure(): processing_fail_counter.inc()
+def record_processing_success(): successful_processing_counter.inc()
+def record_processing_failure(): unsuccessful_processing_counter.inc()
 
 # -------------------- IP Normalization --------------------
 def normalize_and_validate_ip(ip: str) -> str:
@@ -258,6 +258,7 @@ async def authenticate_request(
     content_disposition = request.headers.get("content-disposition")
     if not content_disposition or "filename=" not in content_disposition:
         logger.warning(f"Request from IP={client_ip} has a missing or malformed Content-Disposition header.")
+        record_auth_failure()
         raise HTTPException(status_code=200, detail="Missing filename in Content-Disposition")
     filename = content_disposition.split("filename=")[-1].strip('"')
     camera_id = os.path.splitext(filename)[0]
@@ -285,7 +286,12 @@ async def authenticate_request(
     # Handle regular camera request
     record = get_camera_record_and_validate(camera_id, db_data)
     region = record.get("Cam_LocationsRegion", "").strip()
-    expected_ip = normalize_and_validate_ip((record.get("Cam_MaintenancePublic_IP") or "").strip())
+    
+    raw_ip = (record.get("Cam_MaintenancePublic_IP") or "")
+    logger.warning(f"DEBUG: Raw IP from DB: {repr(raw_ip)}")
+    expected_ip = normalize_and_validate_ip(raw_ip.strip())
+    
+    #expected_ip = normalize_and_validate_ip((record.get("Cam_MaintenancePublic_IP") or "").strip())
 
     verify_ip_or_raise(client_ip, expected_ip, camera_id)
     creds = LOCATION_USER_PASS_MAPPING.get(region)

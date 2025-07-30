@@ -89,11 +89,11 @@ def validate_jpg_image(image_bytes: bytes) -> Tuple[bool, Optional[str]]:
     if not image_bytes:
         return False, "No image data received"
     if len(image_bytes) > MAX_FILE_SIZE:
-        return False, "Image exceeds maximum size limit (5MB)"
+        return False, "Image exceeds maximum size limit"
     try:
         with Image.open(BytesIO(image_bytes)) as img:
             if img.format.lower() not in ("jpeg", "jpg"):
-                return False, "Unsupported image format (only JPEG is accepted)"
+                return False, "Unsupported image format"
     except Exception:
         return False, "Invalid or corrupt image data"
     return True, None
