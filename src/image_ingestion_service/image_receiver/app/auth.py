@@ -22,30 +22,45 @@ def load_mapping_from_env(env_var: str, default: dict = None) -> dict:
     default = default or {}
     raw = os.getenv(env_var)
     logger.info(f"RAW {env_var}: {repr(raw)}")
+
     if not raw:
+        logger.info(f"No value found for {env_var}, returning default mapping")
         return default
 
     try:
         # First attempt: standard JSON
         parsed = json.loads(raw)
+        logger.info(f"Successfully parsed {env_var} as JSON")
 
         # Handle double-encoded JSON (e.g., a JSON string inside a JSON string)
         if isinstance(parsed, str):
+            logger.info(f"{env_var} appears to be double-encoded JSON, attempting second decode")
             parsed = json.loads(parsed)
+            logger.info(f"Successfully parsed {env_var} on second JSON decode")
 
         if isinstance(parsed, dict):
+            logger.info(f"Returning parsed mapping from JSON for {env_var}")
             return parsed
+        else:
+            logger.warning(f"{env_var} JSON parsed but not a dict: {type(parsed)}")
+
     except json.JSONDecodeError as e:
         logger.warning(f"JSON decoding failed for {env_var}: {e}")
 
         try:
             # Second attempt: Python dict literal
             parsed = ast.literal_eval(raw)
+            logger.info(f"Successfully parsed {env_var} using ast.literal_eval")
+
             if isinstance(parsed, dict):
+                logger.info(f"Returning parsed mapping from literal_eval for {env_var}")
                 return parsed
+            else:
+                logger.warning(f"{env_var} literal_eval parsed but not a dict: {type(parsed)}")
         except Exception as e2:
             logger.error(f"ast.literal_eval failed for {env_var}: {e2}")
 
+    logger.info(f"Falling back to default mapping for {env_var}")
     return default
 
 # -------------------- Authentication Setup --------------------
@@ -64,7 +79,7 @@ unsuccessful_auth_counter = Counter("unsuccessful_auth_total", "Count of failed 
 successful_ip_counter = Counter("successful_ip_total", "Count of requests from authorized IPs")
 unsuccessful_ip_counter = Counter("unsuccessful_ip_total", "Count of requests from unauthorized IPs")
 processing_fail_counter = Counter("processing_fail_total", "Count of failed image processing attempts")
-processing_success_counter = Counter("processing_successs_total", "Count of successful image processing attempts")
+processing_success_counter = Counter("processing_success_total", "Count of successful image processing attempts")
 
 # Increment helper functions
 def record_auth_success(): successful_auth_counter.inc()
@@ -176,7 +191,7 @@ def get_camera_record_and_validate(camera_id: str, db_data: list) -> dict:
         return validate_id_and_get_camera_record(db_data, camera_id)
     except ValueError as e:
         logger.warning(f"Validation Error for camera {camera_id}: {e}")
-        raise HTTPException(status_code=400, detail="Unauthorized or unknown camera ID")
+        raise HTTPException(status_code=401, detail="Unauthorized")
 
 # -------------------- IP Authorization --------------------
 def verify_ip_or_raise(client_ip: str, expected_ip: str, camera_id: str):
@@ -188,9 +203,14 @@ def verify_ip_or_raise(client_ip: str, expected_ip: str, camera_id: str):
             else:
                 logger.warning(f"IP mismatch for {camera_id}: expected {expected_ip}, got {client_ip}")
             record_ip_failure()
-            raise HTTPException(status_code=401, detail="IP mismatch")
+            raise HTTPException(
+                status_code=401,
+                detail="Unauthorized",
+                headers={"WWW-Authenticate": "Basic"},
+            )
         record_ip_success()
     else:
+        record_ip_success()
         logger.info(f"No IP restriction for camera {camera_id}. Skipping IP validation.")
 
 # -------------------- Credential Authorization --------------------
@@ -201,7 +221,7 @@ def verify_creds_or_raise(credentials: HTTPBasicCredentials, expected_creds: dic
         record_auth_failure()
         raise HTTPException(
             status_code=401,
-            detail="Credential mismatch",
+            detail="Unauthorized",
             headers={"WWW-Authenticate": "Basic"},
         )
     if not verify_credentials(credentials, expected_creds):
@@ -209,7 +229,7 @@ def verify_creds_or_raise(credentials: HTTPBasicCredentials, expected_creds: dic
         record_auth_failure()
         raise HTTPException(
             status_code=401,
-            detail="Invalid credentials",
+            detail="Unauthorized",
             headers={"WWW-Authenticate": "Basic"},
         )
     record_auth_success()
