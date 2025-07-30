@@ -2,6 +2,7 @@ import os
 import sys
 import uuid
 import logging
+import asyncio
 from io import BytesIO
 from datetime import datetime, timezone
 from urllib.parse import urlparse
@@ -9,17 +10,17 @@ from contextlib import asynccontextmanager
 from contextvars import ContextVar
 from typing import Tuple, Optional
 
-from fastapi import FastAPI, Request, HTTPException, Response, Depends
+from fastapi import FastAPI, Request, Response, Depends
 from fastapi.middleware import Middleware
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import ClientDisconnect
 from prometheus_fastapi_instrumentator import Instrumentator
-from PIL import Image
+from PIL import Image, UnidentifiedImageError
 
 from .auth import (
     authenticate_request, get_client_ip,
     LOCATION_USER_PASS_MAPPING,
-    start_credential_refresh_task,
+    update_credentials_periodically,
     record_processing_failure, record_processing_success
 )
 from .rabbitmq import send_to_rabbitmq
@@ -82,20 +83,46 @@ class RequestIdMiddleware(BaseHTTPMiddleware):
 
 # -------------------- Utility Functions --------------------
 
-MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
+def _get_max_file_size() -> int:
+    """
+    Reads the max file size from the environment variable MAX_FILE_SIZE_BYTES.
+    Falls back to a safe default if the variable is not set or is invalid.
+    """
+    # Define a sensible default value (e.g., 5MB)
+    default_size = 5 * 1024 * 1024
+    max_size_str = os.getenv("MAX_FILE_SIZE_BYTES")
+    if not max_size_str:
+        logger.info(f"MAX_FILE_SIZE_BYTES not set, using default of {default_size} bytes.")
+        return default_size
+    try:
+        # Convert the environment variable (which is always a string) to an integer.
+        size = int(max_size_str)
+        logger.info(f"MAX_FILE_SIZE_BYTES loaded from environment: {size} bytes.")
+        return size
+    except (ValueError, TypeError):
+        # This handles cases where the variable is set to a non-numeric string (e.g., "5MB").
+        logger.warning(
+            f"Invalid value '{max_size_str}' for MAX_FILE_SIZE_BYTES. "
+            f"It must be an integer. Falling back to default of {default_size} bytes."
+        )
+        return default_size
+    
+MAX_FILE_SIZE = _get_max_file_size()    
 
 # Validate that the image is a JPEG and under the max size limit
 def validate_jpg_image(image_bytes: bytes) -> Tuple[bool, Optional[str]]:
     if not image_bytes:
         return False, "No image data received"
     if len(image_bytes) > MAX_FILE_SIZE:
-        return False, "Image exceeds maximum size limit (5MB)"
+        return False, "Image exceeds maximum size limit"
     try:
         with Image.open(BytesIO(image_bytes)) as img:
             if img.format.lower() not in ("jpeg", "jpg"):
-                return False, "Unsupported image format (only JPEG is accepted)"
-    except Exception:
+                return False, "Unsupported image format, only JPEG is allowed"
+    except UnidentifiedImageError:
         return False, "Invalid or corrupt image data"
+    except IOError:
+        return False, "Cannot read image data"
     return True, None
 
 # Normalize the FTP folder path to a POSIX-compliant format
@@ -111,7 +138,7 @@ def get_normalized_ftp_path(folder_url: str) -> str:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    task = start_credential_refresh_task()
+    task = asyncio.create_task(update_credentials_periodically())
     yield
     task.cancel()
 
@@ -164,11 +191,20 @@ async def index():
 async def receive_image(request: Request, auth_data=Depends(authenticate_request)):
     camera_id = str(auth_data.get("ID", ""))
 
-    # Read the image data from the request body stream
+    content_length = request.headers.get("content-length")
+    if content_length and int(content_length) > MAX_FILE_SIZE:
+        logger.warning(f"Content-Length ({content_length}) exceeds max size for camera_id={camera_id}")
+        record_processing_failure()
+        return Response(f"Image exceeds maximum size limit of {MAX_FILE_SIZE} bytes", status_code=413) # Payload Too Large
+
     image_bytes = bytearray()
     try:
         async for chunk in request.stream():
             image_bytes.extend(chunk)
+            if len(image_bytes) > MAX_FILE_SIZE:
+                logger.warning(f"Streamed image exceeds max size for camera_id={camera_id}")
+                record_processing_failure()
+                return Response(f"Image exceeds maximum size limit of {MAX_FILE_SIZE} bytes", status_code=413)
     except ClientDisconnect:
         logger.warning(f"Client disconnected before sending full image for camera_id={camera_id}. Proceeding with partial data.")
 
@@ -198,16 +234,21 @@ async def receive_image(request: Request, auth_data=Depends(authenticate_request
     timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     rabbitmq_filename = f"{camera_id}_{timestamp}.jpg"
 
-    # Send image to RabbitMQ
+    # Track overall result
+    push_failed = False
+    failure_messages = []
+
+    # --- Send image to RabbitMQ ---
     try:
         await send_to_rabbitmq(image_bytes, rabbitmq_filename, camera_id=camera_id)
         logger.info(f"Pushed to RabbitMQ for camera_id={camera_id} with filename={rabbitmq_filename}")
     except Exception as e:
         logger.error(f"Push to RabbitMQ failed for camera_id={camera_id}: %s", str(e), exc_info=True)
         record_processing_failure()
-        return Response(content="Push to RabbitMQ failed", media_type="text/plain", status_code=200)
+        push_failed = True
+        failure_messages.append("Push to RabbitMQ failed")
 
-    # Upload image to FTP server
+    # --- Upload image to FTP server ---
     try:
         result = await upload_to_ftp(
             image_bytes,
@@ -218,14 +259,27 @@ async def receive_image(request: Request, auth_data=Depends(authenticate_request
         if not result:
             logger.error(f"FTP upload failed for camera_id={camera_id} to path {ftp_path}/{ftp_target_filename}")
             record_processing_failure()
-            return Response(content="FTP upload failed", media_type="text/plain", status_code=200)
-        logger.info(f"Pushed to FTP server for camera_id={camera_id} to path {ftp_path}/{ftp_target_filename}")
+            push_failed = True
+            failure_messages.append("FTP upload failed")
+        else:
+            logger.info(f"Pushed to FTP server for camera_id={camera_id} to path {ftp_path}/{ftp_target_filename}")
     except Exception as e:
         logger.error(f"FTP push failed for camera_id={camera_id}: %s", str(e), exc_info=True)
         record_processing_failure()
-        return Response(content="FTP push failed", media_type="text/plain", status_code=200)
+        push_failed = True
+        failure_messages.append("FTP push failed")
+
+    # --- Final outcome ---
+    if push_failed:
+        logger.warning(f"Image processed with errors for camera_id={camera_id}: {', '.join(failure_messages)}")
+        return Response(
+            content=f"Image processed with errors: {', '.join(failure_messages)}",
+            media_type="text/plain",
+            status_code=500
+        )
 
     # All operations succeeded
     logger.info(f"Successfully processed image for camera_id={camera_id}")
     record_processing_success()
     return Response(content="Image received and processed successfully", media_type="text/plain", status_code=200)
+
