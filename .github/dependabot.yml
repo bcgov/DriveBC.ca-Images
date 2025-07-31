@@ -19,6 +19,6 @@ updates:
       interval: "weekly"
 
   - package-ecosystem: "docker"
-    directory: "/compose/image_reciever"
+    directory: "/compose/image_receiver"
     schedule:
       interval: "weekly"
