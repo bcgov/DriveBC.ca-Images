@@ -22,3 +22,8 @@ updates:
     directory: "/compose/image_receiver"
     schedule:
       interval: "weekly"
+
+  - package-ecosystem: "pip"
+    directory: "/src/image_ingestion_service/image_receiver"
+    schedule:
+      interval: "weekly"
