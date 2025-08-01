@@ -10,8 +10,8 @@ permissions:
 
 env:
   REGISTRY: ghcr.io
-  BACKEND_IMAGE_NAME: ${{ github.repository }}-backend
-  FRONTEND_IMAGE_NAME: ${{ github.repository }}-frontend
+  BACKEND_IMAGE_NAME: bcgov/drivebc.ca-images-backend
+  FRONTEND_IMAGE_NAME: bcgov/drivebc.ca-images-frontend
 
 jobs:
   tag:
@@ -38,7 +38,7 @@ jobs:
       uses: shrink/actions-docker-registry-tag@v4
       with:
         registry: ${{ env.REGISTRY }}
-        repository: ${{ toLower(env.FRONTEND_IMAGE_NAME) }}
+        repository: ${{ env.FRONTEND_IMAGE_NAME }}
         target: ${{ needs.tag.outputs.tag }}
         tags: |
           latest-prod
@@ -46,7 +46,7 @@ jobs:
       uses: shrink/actions-docker-registry-tag@v4
       with:
         registry: ${{ env.REGISTRY }}
-        repository: ${{ toLower(env.BACKEND_IMAGE_NAME) }}
+        repository: ${{ env.BACKEND_IMAGE_NAME }}
         target: ${{ needs.tag.outputs.tag }}
         tags: |
           latest-prod
