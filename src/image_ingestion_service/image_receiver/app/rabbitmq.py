@@ -7,13 +7,27 @@ logger = logging.getLogger(__name__)
 
 async def send_to_rabbitmq(image_bytes, filename, camera_id):
     # Read and validate environment variables
-    rb_url = os.getenv("RABBITMQ_URL")
+    cluster = os.getenv("CLUSTER")
+    rb_url_gold = os.getenv("RABBITMQ_GOLD_URL")
+    rb_url_golddr = os.getenv("RABBITMQ_GOLDDR_URL")
     rb_exchange_name = os.getenv("RABBITMQ_EXCHANGE_NAME")
-    
-    if not rb_url:
-        raise ValueError("Missing environment variable: RABBITMQ_URL")
+
+    if not cluster:
+        raise ValueError("Missing environment variable: CLUSTER")    
+    if not rb_url_gold:
+        raise ValueError("Missing environment variable: RABBITMQ_GOLD_URL")
+    if not rb_url_golddr:
+        raise ValueError("Missing environment variable: RABBITMQ_GOLDDR_URL")
     if not rb_exchange_name:
         raise ValueError("Missing environment variable: RABBITMQ_EXCHANGE_NAME")
+    
+    # Pick the RabbitMQ URL based on cluster (default to GOLD)
+    if cluster.upper() == "GOLDDR":
+        rb_url = rb_url_golddr
+    else:
+        rb_url = rb_url_gold
+        if cluster.upper() != "GOLD":
+            logger.warning(f"Unknown CLUSTER value '{cluster}', defaulting to GOLD URL.")
 
     timestamp = datetime.now(timezone.utc).isoformat()
     dt = datetime.fromisoformat(timestamp)

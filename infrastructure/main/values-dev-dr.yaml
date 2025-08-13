@@ -4,5 +4,10 @@ frontend:
 
 
 backend:
+  deployment:
+    env:
+      variables:
+        PYTHON_LOG_LEVEL: INFO
+        CLUSTER: GOLDDR
   vault:
     authPath: auth/k8s-golddr # Must match cluster. Use one of: k8s-silver, k8s-gold, k8s-golddr, k8s-emerald
