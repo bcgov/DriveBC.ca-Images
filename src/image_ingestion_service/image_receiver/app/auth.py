@@ -266,21 +266,26 @@ async def authenticate_request(
     logger.info(f"Request from IP={client_ip} for camera={camera_id} using proto={client_proto}")
 
     # Handle scripted IPs (trusted automation)
-    for scripted_name, ip_pattern in SCRIPTED_IP_MAPPING.items():
-        norm_ip = normalize_and_validate_ip(ip_pattern)
-        if norm_ip and client_ip.startswith(norm_ip):
-            logger.info(f"Scripted request detected: {scripted_name}")
-            creds = LOCATION_USER_PASS_MAPPING.get(scripted_name)
-            verify_creds_or_raise(credentials, creds, camera_id)
-            record_ip_success()
+    for scripted_name, ip_patterns in SCRIPTED_IP_MAPPING.items():
+        # Ensure we always have a list, even if one IP is given
+        if isinstance(ip_patterns, str):
+            ip_patterns = [ip_patterns]
 
-            record = get_camera_record_and_validate(camera_id, db_data)
-            return {
-                **record,
-                "ID": str(record["ID"]),
-                "ip_address": client_ip,
-                "is_scripted": True
-            }
+        for ip_pattern in ip_patterns:
+            norm_ip = normalize_and_validate_ip(ip_pattern)
+            if norm_ip and check_ip_match(client_ip, norm_ip):
+                logger.info(f"Scripted request detected: {scripted_name}")
+                creds = LOCATION_USER_PASS_MAPPING.get(scripted_name)
+                verify_creds_or_raise(credentials, creds, camera_id)
+                record_ip_success()
+
+                record = get_camera_record_and_validate(camera_id, db_data)
+                return {
+                    **record,
+                    "ID": str(record["ID"]),
+                    "ip_address": client_ip,
+                    "is_scripted": True
+                }
 
     # Handle regular camera request
     record = get_camera_record_and_validate(camera_id, db_data)
