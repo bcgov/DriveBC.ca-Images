@@ -190,6 +190,7 @@ async def index():
 @app.post("/api/images")
 async def receive_image(request: Request, auth_data=Depends(authenticate_request)):
     camera_id = str(auth_data.get("ID", ""))
+    TIMESTAMP_FORMAT = "%Y%m%dT%H%M%SZ"
 
     content_length = request.headers.get("content-length")
     if content_length and int(content_length) > MAX_FILE_SIZE:
@@ -231,7 +232,24 @@ async def receive_image(request: Request, auth_data=Depends(authenticate_request
 
     # Normalize path and generate timestamped filename
     ftp_path = get_normalized_ftp_path(ftp_folder_url)
-    timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+
+    timestamp_header = request.headers.get("timestamp")
+
+    if timestamp_header:
+        try:
+            # Only allow compact UTC format: 20250819T142345Z
+            ts = datetime.strptime(timestamp_header, TIMESTAMP_FORMAT)
+            timestamp = ts.strftime(TIMESTAMP_FORMAT)
+            logger.info(f"Using timestamp header for camera_id={camera_id} with timestamp={timestamp}")
+        except ValueError:
+            logger.warning(
+                f"Invalid timestamp header for camera_id={camera_id}, "
+                "falling back to current UTC time."
+            )
+            timestamp = datetime.now(timezone.utc).strftime(TIMESTAMP_FORMAT)
+    else:
+        timestamp = datetime.now(timezone.utc).strftime(TIMESTAMP_FORMAT)
+
     rabbitmq_filename = f"{camera_id}_{timestamp}.jpg"
 
     # Track overall result
@@ -240,7 +258,7 @@ async def receive_image(request: Request, auth_data=Depends(authenticate_request
 
     # --- Send image to RabbitMQ ---
     try:
-        await send_to_rabbitmq(image_bytes, rabbitmq_filename, camera_id=camera_id)
+        await send_to_rabbitmq(image_bytes, rabbitmq_filename, camera_id=camera_id, timestamp=timestamp)
         logger.info(f"Pushed to RabbitMQ for camera_id={camera_id} with filename={rabbitmq_filename}")
     except Exception as e:
         logger.error(f"Push to RabbitMQ failed for camera_id={camera_id}: %s", str(e), exc_info=False)
