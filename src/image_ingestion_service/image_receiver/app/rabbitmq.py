@@ -5,7 +5,11 @@ from datetime import datetime, timezone
 
 logger = logging.getLogger(__name__)
 
-async def send_to_rabbitmq(image_bytes, filename, camera_id):
+async def send_to_rabbitmq(image_bytes, filename, camera_id, timestamp):
+    """
+    Sends the image to RabbitMQ with the provided camera_id, filename, and timestamp.
+    The timestamp should already be in compact UTC format (YYYYMMDDTHHMMSSZ).
+    """
     # Read and validate environment variables
     cluster = os.getenv("CLUSTER")
     rb_url_gold = os.getenv("RABBITMQ_GOLD_URL")
@@ -29,10 +33,12 @@ async def send_to_rabbitmq(image_bytes, filename, camera_id):
         if cluster.upper() != "GOLD":
             logger.warning(f"Unknown CLUSTER value '{cluster}', defaulting to GOLD URL.")
 
-    timestamp = datetime.now(timezone.utc).isoformat()
     dt = datetime.fromisoformat(timestamp)
     # Format as YYYYMMDDHHMMSSfff (fff = milliseconds)
     formatted_timestamp = dt.strftime("%Y%m%d%H%M%S") + f"{int(dt.microsecond / 1000):03d}"
+
+    processed_dt = datetime.now(timezone.utc)
+    processed_timestamp = processed_dt.strftime("%Y%m%d%H%M%S") + f"{int(processed_dt.microsecond / 1000):03d}"
 
     try:
         connection = await aio_pika.connect_robust(rb_url)
@@ -49,7 +55,8 @@ async def send_to_rabbitmq(image_bytes, filename, camera_id):
                 headers={
                     "camera_id": camera_id,
                     "filename": filename,
-                    "timestamp": formatted_timestamp
+                    "timestamp": formatted_timestamp,
+                    "processed_timestamp": processed_timestamp
                 },
                 delivery_mode=aio_pika.DeliveryMode.PERSISTENT
             )
