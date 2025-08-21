@@ -55,8 +55,14 @@ async def upload_to_ftp(image_bytes: bytes, filename: str, camera_id: str, targe
         async with aiofiles.open(tmp_file_path, "wb") as tmp_file:
             await tmp_file.write(image_bytes)
 
-        # Upload the file
-        await ftp_client.upload(tmp_file_path, filename, write_into=True)
+        # Upload the file with retry logic for connection issues
+        try:
+            await ftp_client.upload(tmp_file_path, filename, write_into=True)
+        except ConnectionResetError:
+            # Try switching to active mode if passive fails
+            logger.debug("Passive mode failed, trying active mode for camera_id=%s", camera_id)
+            ftp_client.passive = False
+            await ftp_client.upload(tmp_file_path, filename, write_into=True)
 
         await Path(tmp_file_path).unlink()
         return True
