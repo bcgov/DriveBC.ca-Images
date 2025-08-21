@@ -20,7 +20,7 @@ async def upload_to_ftp(image_bytes: bytes, filename: str, camera_id: str, targe
     ssl_context.verify_mode = ssl.CERT_NONE  # Skip certificate verification
     
     ftp_client = aioftp.Client(
-        tls=ssl_context  # Use implicit TLS with SSL context
+        ssl=ssl_context  # Use implicit TLS with SSL context
     )
     
     ftp_client.passive = True
