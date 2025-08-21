@@ -28,7 +28,7 @@ async def upload_to_ftp(image_bytes: bytes, filename: str, camera_id: str, targe
     try:
         # For implicit TLS, the connection is encrypted from the start
         await ftp_client.connect(host, port)
-        logger.debug(f"Connected to FTPS server {host}:{port} as user {user} for camera_id={camera_id} (implicit TLS)")
+        logger.info(f"Connected to FTPS server {host}:{port} as user {user} for camera_id={camera_id} (implicit TLS)")
         
         await ftp_client.login(user, password)
 
@@ -39,15 +39,15 @@ async def upload_to_ftp(image_bytes: bytes, filename: str, camera_id: str, targe
         for segment in path_segments:
             current_path = f"{current_path}/{segment}" if current_path else segment
             try:
-                logger.debug("Creating directory on FTP: /%s", current_path)
+                logger.info("Creating directory on FTP: /%s", current_path)
                 await ftp_client.command(f"MKD /{current_path}", "2xx")
             except aioftp.StatusCodeError as e:
                 # 550 often means "already exists" — we can skip it
-                logger.debug("Directory probably exists: /%s (%s)", current_path, str(e))
+                logger.info("Directory probably exists: /%s (%s)", current_path, str(e))
 
         # Only change directory *after* structure is created
         await ftp_client.change_directory(f"/{target_ftp_path.strip('/')}")
-        logger.debug("Changed to FTP directory: /%s", target_ftp_path.strip("/"))
+        logger.info("Changed to FTP directory: /%s", target_ftp_path.strip("/"))
 
         # Write image bytes to a temporary file
         tmp_dir = tempfile.gettempdir()
@@ -60,7 +60,7 @@ async def upload_to_ftp(image_bytes: bytes, filename: str, camera_id: str, targe
             await ftp_client.upload(tmp_file_path, filename, write_into=True)
         except ConnectionResetError:
             # Try switching to active mode if passive fails
-            logger.debug("Passive mode failed, trying active mode for camera_id=%s", camera_id)
+            logger.info("Passive mode failed, trying active mode for camera_id=%s", camera_id)
             ftp_client.passive = False
             await ftp_client.upload(tmp_file_path, filename, write_into=True)
 
