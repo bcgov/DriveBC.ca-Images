@@ -16,12 +16,10 @@ async def upload_to_ftp(image_bytes: bytes, filename: str, camera_id: str, targe
 
     # Create SSL context for implicit TLS
     ssl_context = ssl.create_default_context()
-    ssl_context.check_hostname = False  # Often needed for FTP servers
-    ssl_context.verify_mode = ssl.CERT_NONE  # Skip certificate verification
+    #ssl_context.check_hostname = False  # Often needed for FTP servers
+    #ssl_context.verify_mode = ssl.CERT_NONE  # Skip certificate verification
     
-    ftp_client = aioftp.Client(
-        ssl=ssl_context  # Use implicit TLS with SSL context
-    )
+    ftp_client = aioftp.Client(ssl=ssl_context, tls=True)
     
     ftp_client.passive = True
 
