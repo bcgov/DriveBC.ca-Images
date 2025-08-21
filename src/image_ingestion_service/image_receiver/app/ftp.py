@@ -4,22 +4,34 @@ import tempfile
 import os
 import logging
 import aiofiles
+import ssl
 
 logger = logging.getLogger(__name__)
 
 async def upload_to_ftp(image_bytes: bytes, filename: str, camera_id: str, target_ftp_path: str) -> bool:
     host = os.getenv("FTP_HOST", "")
-    port = int(os.getenv("FTP_PORT", 21))
+    port = int(os.getenv("FTP_PORT", 990))  # Default to 990 for FTPS implicit TLS
     user = os.getenv("FTP_USER", "test")
     password = os.getenv("FTP_PASS", "test")
 
-    ftp_client = aioftp.Client()
+    # Create SSL context for implicit TLS
+    ssl_context = ssl.create_default_context()
+    ssl_context.check_hostname = False  # Often needed for FTP servers
+    ssl_context.verify_mode = ssl.CERT_NONE  # Skip certificate verification
+    
+    ftp_client = aioftp.Client(
+        ssl_context=ssl_context,
+        ssl_context_factory=None  # Use the provided ssl_context
+    )
+    
     ftp_client.passive = True
 
     try:
-        await ftp_client.connect(host, port)
+        # For implicit TLS, the connection is encrypted from the start
+        await ftp_client.connect(host, port, ssl=True)
+        logger.debug(f"Connected to FTPS server {host}:{port} as user {user} for camera_id={camera_id} (implicit TLS)")
+        
         await ftp_client.login(user, password)
-        logger.debug(f"Connected to FTP server {host}:{port} as user {user} for camera_id={camera_id}")
 
         # Build directory path manually
         path_segments = target_ftp_path.strip("/").split("/")
