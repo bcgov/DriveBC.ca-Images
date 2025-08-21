@@ -20,15 +20,14 @@ async def upload_to_ftp(image_bytes: bytes, filename: str, camera_id: str, targe
     ssl_context.verify_mode = ssl.CERT_NONE  # Skip certificate verification
     
     ftp_client = aioftp.Client(
-        ssl_context=ssl_context,
-        ssl_context_factory=None  # Use the provided ssl_context
+        tls=ssl_context  # Use implicit TLS with SSL context
     )
     
     ftp_client.passive = True
 
     try:
         # For implicit TLS, the connection is encrypted from the start
-        await ftp_client.connect(host, port, ssl=True)
+        await ftp_client.connect(host, port)
         logger.debug(f"Connected to FTPS server {host}:{port} as user {user} for camera_id={camera_id} (implicit TLS)")
         
         await ftp_client.login(user, password)
