@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 
 logger = logging.getLogger(__name__)
 
-async def send_to_rabbitmq(image_bytes, filename, camera_id, timestamp):
+async def send_to_rabbitmq(image_bytes, filename, camera_id, timestamp, ftp_path, ftp_target_filename):
     """
     Sends the image to RabbitMQ with the provided camera_id, filename, and timestamp.
     The timestamp should already be in compact UTC format (YYYYMMDDTHHMMSSZ).
@@ -56,7 +56,9 @@ async def send_to_rabbitmq(image_bytes, filename, camera_id, timestamp):
                     "camera_id": camera_id,
                     "filename": filename,
                     "timestamp": formatted_timestamp,
-                    "processed_timestamp": processed_timestamp
+                    "processed_timestamp": processed_timestamp,
+                    "ftp_path": ftp_path,
+                    "ftp_target_filename": ftp_target_filename
                 },
                 delivery_mode=aio_pika.DeliveryMode.PERSISTENT
             )

@@ -258,7 +258,7 @@ async def receive_image(request: Request, auth_data=Depends(authenticate_request
 
     # --- Send image to RabbitMQ ---
     try:
-        await send_to_rabbitmq(image_bytes, rabbitmq_filename, camera_id=camera_id, timestamp=timestamp)
+        await send_to_rabbitmq(image_bytes, rabbitmq_filename, camera_id=camera_id, timestamp=timestamp, ftp_path=ftp_path, ftp_target_filename=ftp_target_filename)
         logger.info(f"Pushed to RabbitMQ for camera_id={camera_id} with filename={rabbitmq_filename}")
     except Exception as e:
         logger.error(f"Push to RabbitMQ failed for camera_id={camera_id}: %s", str(e), exc_info=False)
