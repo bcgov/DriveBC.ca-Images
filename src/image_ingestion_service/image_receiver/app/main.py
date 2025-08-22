@@ -24,7 +24,6 @@ from .auth import (
     record_processing_failure, record_processing_success
 )
 from .rabbitmq import send_to_rabbitmq
-from .ftp import upload_to_ftp
 
 
 # -------------------- Request ID Context for Logging --------------------
@@ -252,46 +251,22 @@ async def receive_image(request: Request, auth_data=Depends(authenticate_request
 
     rabbitmq_filename = f"{camera_id}_{timestamp}.jpg"
 
-    # Track overall result
-    push_failed = False
-    failure_messages = []
-
     # --- Send image to RabbitMQ ---
     try:
-        await send_to_rabbitmq(image_bytes, rabbitmq_filename, camera_id=camera_id, timestamp=timestamp, ftp_path=ftp_path, ftp_target_filename=ftp_target_filename)
+        await send_to_rabbitmq(
+            image_bytes,
+            rabbitmq_filename,
+            camera_id=camera_id,
+            timestamp=timestamp,
+            ftp_path=ftp_path,
+            ftp_target_filename=ftp_target_filename
+        )
         logger.info(f"Pushed to RabbitMQ for camera_id={camera_id} with filename={rabbitmq_filename}")
     except Exception as e:
-        logger.error(f"Push to RabbitMQ failed for camera_id={camera_id}: %s", str(e), exc_info=False)
+        logger.error(f"Push to RabbitMQ failed for camera_id={camera_id}: {e}", exc_info=False)
         record_processing_failure()
-        push_failed = True
-        failure_messages.append("Push to RabbitMQ failed")
-
-    # --- Upload image to FTP server ---
-    try:
-        result = await upload_to_ftp(
-            image_bytes,
-            ftp_target_filename,
-            camera_id=camera_id,
-            target_ftp_path=ftp_path
-        )
-        if not result:
-            logger.error(f"FTP upload failed for camera_id={camera_id} to path {ftp_path}/{ftp_target_filename}")
-            record_processing_failure()
-            push_failed = True
-            failure_messages.append("FTP upload failed")
-        else:
-            logger.info(f"Pushed to FTP server for camera_id={camera_id} to path {ftp_path}/{ftp_target_filename}")
-    except Exception as e:
-        logger.error(f"FTP push failed for camera_id={camera_id}: %s", str(e), exc_info=False)
-        record_processing_failure()
-        push_failed = True
-        failure_messages.append("FTP push failed")
-
-    # --- Final outcome ---
-    if push_failed:
-        logger.warning(f"Image processed with errors for camera_id={camera_id}: {', '.join(failure_messages)}")
         return Response(
-            content=f"Image processed with errors: {', '.join(failure_messages)}",
+            content="Image processed with errors: Push to RabbitMQ failed",
             media_type="text/plain",
             status_code=500
         )
