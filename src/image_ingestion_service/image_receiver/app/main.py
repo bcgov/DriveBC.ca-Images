@@ -80,6 +80,11 @@ class RequestIdMiddleware(BaseHTTPMiddleware):
         response.headers["X-Request-ID"] = req_id
         return response
 
+# -------------------- FTP Enabled Variable --------------------
+
+FTP_ENABLED = os.getenv("FTP_ENABLED", "false").lower() in ("1", "true", "yes")
+logger.info(f"FTP_ENABLED is set to {FTP_ENABLED}")
+
 
 # -------------------- Utility Functions --------------------
 
@@ -267,25 +272,29 @@ async def receive_image(request: Request, auth_data=Depends(authenticate_request
         failure_messages.append("Push to RabbitMQ failed")
 
     # --- Upload image to FTP server ---
-    try:
-        result = await upload_to_ftp(
-            image_bytes,
-            ftp_target_filename,
-            camera_id=camera_id,
-            target_ftp_path=ftp_path
-        )
-        if not result:
-            logger.error(f"FTP upload failed for camera_id={camera_id} to path {ftp_path}/{ftp_target_filename}")
+    if FTP_ENABLED:
+        try:
+            result = await upload_to_ftp(
+                image_bytes,
+                ftp_target_filename,
+                camera_id=camera_id,
+                target_ftp_path=ftp_path
+            )
+            if not result:
+                logger.error(f"FTP upload failed for camera_id={camera_id} to path {ftp_path}/{ftp_target_filename}")
+                record_processing_failure()
+                push_failed = True
+                failure_messages.append("FTP upload failed")
+            else:
+                logger.info(f"Pushed to FTP server for camera_id={camera_id} to path {ftp_path}/{ftp_target_filename}")
+        except Exception as e:
+            logger.error(f"FTP push failed for camera_id={camera_id}: %s", str(e), exc_info=False)
             record_processing_failure()
             push_failed = True
-            failure_messages.append("FTP upload failed")
-        else:
-            logger.info(f"Pushed to FTP server for camera_id={camera_id} to path {ftp_path}/{ftp_target_filename}")
-    except Exception as e:
-        logger.error(f"FTP push failed for camera_id={camera_id}: %s", str(e), exc_info=False)
-        record_processing_failure()
-        push_failed = True
-        failure_messages.append("FTP push failed")
+            failure_messages.append("FTP push failed")
+    else:
+        logger.info(f"FTP upload skipped for camera_id={camera_id} because FTP_ENABLED=False")
+
 
     # --- Final outcome ---
     if push_failed:
