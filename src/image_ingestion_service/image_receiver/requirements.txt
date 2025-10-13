@@ -7,4 +7,4 @@ aioftp==0.26.2
 aio_pika==9.5.6
 sqlalchemy==2.0.43
 pyodbc==5.2.0
-aiofiles==24.1.0
+aiofiles==25.1.0
