@@ -2,13 +2,16 @@ FROM python:3.14-slim
 
 WORKDIR /app
 
-# Install required tools and Microsoft ODBC Driver 17 for SQL Server
+# Install required tools, Microsoft ODBC Driver, and build dependencies
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         gnupg \
         curl \
         ca-certificates \
-        apt-transport-https && \
+        apt-transport-https \
+        g++ \
+        unixodbc-dev \
+        build-essential && \ 
     curl https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > /usr/share/keyrings/microsoft.gpg && \
     echo "deb [signed-by=/usr/share/keyrings/microsoft.gpg] https://packages.microsoft.com/debian/11/prod bullseye main" > /etc/apt/sources.list.d/mssql-release.list && \
     apt-get update && \
