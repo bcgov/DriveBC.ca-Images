@@ -5,6 +5,6 @@ pillow==12.0.0
 prometheus_fastapi_instrumentator==7.1.0
 aioftp==0.27.2
 aio_pika==9.5.8
-sqlalchemy==2.0.43
+sqlalchemy==2.0.47
 pyodbc==5.3.0
 aiofiles==25.1.0
