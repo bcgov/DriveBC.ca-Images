@@ -1,4 +1,4 @@
-fastapi==0.121.3
+fastapi==0.135.1
 uvicorn==0.42.0
 python-multipart==0.0.22
 pillow==12.1.1
