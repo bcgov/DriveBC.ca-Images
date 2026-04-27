@@ -16,8 +16,6 @@ src/image_ingetsion_system/.env
 nginx/.htpasswd
 nginx/ip_whitelist.conf
 
-# FTP data
-src/image_ingestion_service/ftp-data/
 
 # Replay the day json files
 src/image_ingestion_service/ReplayTheDay/

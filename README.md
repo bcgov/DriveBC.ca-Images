@@ -1,7 +1,7 @@
 # DriveBC.ca-Images
 Image Ingestion Service for DriveBC.ca
 
-The DriveBC Image Ingestion Service is composed of a single [Docker](https://www.docker.com/) container running a FastAPI backend. It integrates with a RabbitMQ message broker, an FTP server for pushing images to legacy systems, and a RabbitMQ consumer for processing ingested images.
+The DriveBC Image Ingestion Service is composed of a single [Docker](https://www.docker.com/) container running a FastAPI backend. It integrates with a RabbitMQ message broker, and a RabbitMQ consumer for processing ingested images.
 
 - [Quickstart](#quickstart)
 - [Environment configuration](#environment-configuration)
@@ -25,11 +25,11 @@ Axis Camera Image Ingestion Workflow
 
 1. Camera Configuration
 - The end user configures an Axis camera to upload images via HTTP or HTTPS to a specific endpoint.
-- This endpoint accepts POST request for receiving images and passthrough the image to MOTT RabbitMQ and legacy FTP server.
+- This endpoint accepts POST request for receiving images and passthrough the image to MOTT RabbitMQ.
 
 2. Image Receiver Service
 - Basic Authentication: Verifies that the request has valid camera id, ip address and credentials.
-- If all checks pass, the Image Receiver service will passthrough the images to RabbitMQ and FTP server.
+- If all checks pass, the Image Receiver service will passthrough the images to RabbitMQ.
 - If either check fails, the request is denied and logged.
 - It exposes three endpoints:
    - GET /health – for health checks
@@ -51,8 +51,8 @@ Run curl from Windows Command Prompt:
 - curl -X POST -H "camera-id: cam123" -H "username: north_user" -H "password: north_pass"  -F "image=@C:/work/DriveBC.ca-Images/src/image_ingestion_service/image/cam123.jpg" http://localhost:8000/images
 - Ensure the camera-id header and correct file path are used. Replace credentials as needed for authentication testing.
 
-Verify Image Reception in RabbitMQ and legacy FTP server:
-To confirm that images are being successfully consumed from RabbitMQ and delivered to the legacy FTP server, follow these steps:
+Verify Image Reception in RabbitMQ:
+To confirm that images are being successfully consumed from RabbitMQ, follow these steps:
 
 Check the RabbitMQ Dev Console
 - Access the RabbitMQ Dev management interface: https://dev-moti-rabbitmq.apps.silver.devops.gov.bc.ca/#/
@@ -60,9 +60,6 @@ Check the RabbitMQ Dev Console
 Verify the Queue Binding
 - Ensure that the appropriate queue is created and correctly bound to the exchange.
 - Confirm that image messages are passing through the queue.
-
-Check the Legacy FTP Server
-- Verify that the image files have been received by the FTP server.
 
 Look for log entries confirming receipt of each image.
 - Monitor Application Metrics

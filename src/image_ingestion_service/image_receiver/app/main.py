@@ -24,7 +24,6 @@ from .auth import (
     record_processing_failure, record_processing_success
 )
 from .rabbitmq import send_to_rabbitmq
-from .ftp import upload_to_ftp
 
 
 # -------------------- Request ID Context for Logging --------------------
@@ -80,10 +79,6 @@ class RequestIdMiddleware(BaseHTTPMiddleware):
         response.headers["X-Request-ID"] = req_id
         return response
 
-# -------------------- FTP Enabled Variable --------------------
-
-FTP_ENABLED = os.getenv("FTP_ENABLED", "false").lower() in ("1", "true", "yes")
-logger.info(f"FTP_ENABLED is set to {FTP_ENABLED}")
 
 
 # -------------------- Utility Functions --------------------
@@ -130,13 +125,6 @@ def validate_jpg_image(image_bytes: bytes) -> Tuple[bool, Optional[str]]:
         return False, "Cannot read image data"
     return True, None
 
-# Normalize the FTP folder path to a POSIX-compliant format
-def get_normalized_ftp_path(folder_url: str) -> str:
-    parsed_url = urlparse(folder_url)
-    ftp_path = parsed_url.path
-    if not ftp_path.startswith('/'):
-        ftp_path = '/' + ftp_path
-    return os.path.normpath(ftp_path)
 
 
 # -------------------- FastAPI Application Setup --------------------
@@ -226,17 +214,6 @@ async def receive_image(request: Request, auth_data=Depends(authenticate_request
         record_processing_failure()
         return Response(error, media_type="text/plain", status_code=400)
 
-    # Extract FTP configuration from the auth metadata
-    ftp_folder_url = auth_data.get("Cam_InternetFTP_Folder")
-    ftp_target_filename = auth_data.get("Cam_InternetFTP_Filename")
-
-    if not ftp_folder_url or not ftp_target_filename:
-        logger.warning(f"Missing FTP configuration for camera_id={camera_id}")
-        record_processing_failure()
-        return Response(content="Missing FTP configuration", media_type="text/plain", status_code=200)
-
-    # Normalize path and generate timestamped filename
-    ftp_path = get_normalized_ftp_path(ftp_folder_url)
 
     timestamp_header = request.headers.get("timestamp")
 
@@ -270,30 +247,6 @@ async def receive_image(request: Request, auth_data=Depends(authenticate_request
         record_processing_failure()
         push_failed = True
         failure_messages.append("Push to RabbitMQ failed")
-
-    # --- Upload image to FTP server ---
-    if FTP_ENABLED:
-        try:
-            result = await upload_to_ftp(
-                image_bytes,
-                ftp_target_filename,
-                camera_id=camera_id,
-                target_ftp_path=ftp_path
-            )
-            if not result:
-                logger.error(f"FTP upload failed for camera_id={camera_id} to path {ftp_path}/{ftp_target_filename}")
-                record_processing_failure()
-                push_failed = True
-                failure_messages.append("FTP upload failed")
-            else:
-                logger.info(f"Pushed to FTP server for camera_id={camera_id} to path {ftp_path}/{ftp_target_filename}")
-        except Exception as e:
-            logger.error(f"FTP push failed for camera_id={camera_id}: %s", str(e), exc_info=False)
-            record_processing_failure()
-            push_failed = True
-            failure_messages.append("FTP push failed")
-    else:
-        logger.info(f"FTP upload skipped for camera_id={camera_id} because FTP_ENABLED=False")
 
 
     # --- Final outcome ---
