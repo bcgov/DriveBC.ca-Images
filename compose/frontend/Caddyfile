@@ -4,6 +4,7 @@
     storage_clean_interval 1d
     metrics
     admin 0.0.0.0:2019
+    order coraza_waf first
 
     servers {
         trusted_proxies static 10.0.0.0/8
@@ -16,6 +17,13 @@
         format json
     }    
     log_skip /healthz
+    
+	# Enable Coraza WAF
+	coraza_waf {
+		directives `
+		Include /etc/caddy/coraza.conf
+		`
+	}
 
     route /api/images {
         @no_auth_header {
