@@ -19,7 +19,7 @@ RUN apk add --no-cache \
     curl \
     ca-certificates
 
-COPY --from=caddy /build/caddy /usr/bin/caddy
+COPY --from=caddy /usr/bin/caddy /usr/bin/caddy
 COPY --chmod=755 ./compose/frontend/Caddyfile /Caddyfile
 COPY ./compose/frontend/coraza.conf /etc/caddy/coraza.conf
 
