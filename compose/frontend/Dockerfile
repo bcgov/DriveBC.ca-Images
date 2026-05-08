@@ -21,7 +21,7 @@ RUN apk add --no-cache \
 
 COPY --from=caddy /build/caddy /usr/bin/caddy
 COPY --chmod=755 ./compose/frontend/Caddyfile /Caddyfile
-COPY coraza.conf /etc/caddy/coraza.conf
+COPY ./compose/frontend/coraza.conf /etc/caddy/coraza.conf
 
 # Create directories for Coraza WAF with restricted permissions
 RUN mkdir -p /tmp/coraza && \
