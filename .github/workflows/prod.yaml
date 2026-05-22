@@ -13,6 +13,7 @@ jobs:
   tag:
     runs-on: ubuntu-latest
     name: Create Tag Variable
+    permissions: {}
     timeout-minutes: 1
     outputs:
       tag: ${{ steps.create_tag.outputs.tag }}
