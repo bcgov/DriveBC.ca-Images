@@ -1,0 +1,40 @@
+name: 'OC Login Setup'
+description: 'Installs oc CLI, and logs into an OpenShift cluster'
+
+inputs:
+  server:
+    required: true
+    description: OpenShift server URL
+  token:
+    required: true
+    description: OpenShift auth token
+  namespace:
+    required: true
+    description: OpenShift project/namespace
+
+runs:
+  using: composite
+  steps:
+    - name: Cache oc CLI
+      id: cache-oc
+      uses: actions/cache@v5
+      with:
+        path: /usr/local/bin/oc
+        key: oc-cli-stable-${{ runner.os }}
+
+    - name: Install oc CLI
+      if: steps.cache-oc.outputs.cache-hit != 'true'
+      shell: bash
+      run: |
+        curl -sL https://mirror.openshift.com/pub/openshift-v4/clients/ocp/stable/openshift-client-linux.tar.gz \
+          | tar -xz -C /usr/local/bin oc
+
+    - name: Authenticate and set project
+      shell: bash
+      env:
+        OC_SERVER: ${{ inputs.server }}
+        OC_TOKEN: ${{ inputs.token }}
+        OC_NAMESPACE: ${{ inputs.namespace }}
+      run: |
+        oc login --server="$OC_SERVER" --token="$OC_TOKEN"
+        oc project "$OC_NAMESPACE"

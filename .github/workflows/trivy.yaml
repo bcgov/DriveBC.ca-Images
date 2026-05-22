@@ -7,14 +7,13 @@ on:
     - cron:  '0 2 * * 0'
   workflow_dispatch:
 
-permissions: 
-    packages: read
-    security-events: write
-
 jobs:
   imagescan-ingestion-service-frontend:
     name: Scan latest Image Ingestion Frontend Image
     runs-on: ubuntu-latest
+    permissions: 
+      packages: read
+      security-events: write
     steps:
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@v0.36.0
@@ -36,6 +35,9 @@ jobs:
   imagescan-ingestion-service-backend:
     name: Scan latest Image Ingestion Backend Image
     runs-on: ubuntu-latest
+    permissions:
+      packages: read
+      security-events: write
     steps:
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@v0.36.0

@@ -9,10 +9,6 @@ on:
     - '.github/**'
   workflow_dispatch:
 
-permissions:
-  contents: read
-  packages: write
-
 env:
   REGISTRY: ghcr.io
   BACKEND_IMAGE_NAME: ${{ github.repository }}-backend
@@ -112,24 +108,20 @@ jobs:
     needs: [build-and-push-frontend, build-and-push-backend]
     runs-on: ubuntu-latest
     name: Deploy Latest Images to OpenShift Gold
+    permissions:
+      contents: read
     environment:
       name: dev
     steps:
     - name: Checkout code
       uses: actions/checkout@v6
-    - name: Install CLI tools from OpenShift Mirror
-      uses: redhat-actions/openshift-tools-installer@v1
+    - name: OC Setup
+      uses: ./.github/actions/oc-setup
       with:
-        oc: "4"
-        skip_cache: true
-      
-    - name: Authenticate and set context
-      uses: redhat-actions/oc-login@v1
-      with:
-        openshift_server_url: ${{ vars.OPENSHIFT_GOLD_SERVER }}
-        openshift_token: ${{ secrets.OPENSHIFT_GOLD_TOKEN }}
+        server: ${{ vars.OPENSHIFT_GOLD_SERVER }}
+        token: ${{ secrets.OPENSHIFT_GOLD_TOKEN }}
         namespace: ${{ vars.OPENSHIFT_NAMESPACE }}
-        insecure_skip_tls_verify: false
+
     - name: Helm upgrade on OpenShift Gold Environment
       run: |
         helm upgrade dev-image-ingestion-service -f ./infrastructure/main/values-dev.yaml ./infrastructure/main --set frontend.image.tag="sha-${{ github.sha }}" --set backend.image.tag="sha-${{ github.sha }}"
@@ -138,25 +130,20 @@ jobs:
     needs: [build-and-push-frontend, build-and-push-backend]
     runs-on: ubuntu-latest
     name: Deploy Latest Images to OpenShift GoldDR
+    permissions:
+      contents: read
     environment:
       name: dev
     steps:
     - name: Checkout code
       uses: actions/checkout@v6
 
-    - name: Install CLI tools from OpenShift Mirror
-      uses: redhat-actions/openshift-tools-installer@v1
+    - name: OC Setup
+      uses: ./.github/actions/oc-setup
       with:
-        oc: "4"
-        skip_cache: true
-     
-    - name: Authenticate and set context
-      uses: redhat-actions/oc-login@v1
-      with:
-        openshift_server_url: ${{ vars.OPENSHIFT_GOLDDR_SERVER }}
-        openshift_token: ${{ secrets.OPENSHIFT_GOLDDR_TOKEN }}
+        server: ${{ vars.OPENSHIFT_GOLDDR_SERVER }}
+        token: ${{ secrets.OPENSHIFT_GOLDDR_TOKEN }}
         namespace: ${{ vars.OPENSHIFT_NAMESPACE }}
-        insecure_skip_tls_verify: false
 
     - name: Helm upgrade on OpenShift GoldDR Environment
       run: |
