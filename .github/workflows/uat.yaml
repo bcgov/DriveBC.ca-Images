@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     name: Create Tag and set Variable
     permissions: 
-      contents: read
+      contents: write
 
     outputs:
       tag: ${{ steps.create_tag.outputs.tag }}
