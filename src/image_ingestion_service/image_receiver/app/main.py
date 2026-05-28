@@ -26,8 +26,6 @@ from .auth import (
 )
 from .rabbitmq import send_to_rabbitmq
 
-from rabbitmq import rabbitmq_manager
-
 
 # -------------------- Request ID Context for Logging --------------------
 
