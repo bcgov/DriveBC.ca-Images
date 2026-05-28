@@ -9,6 +9,7 @@ from urllib.parse import urlparse
 from contextlib import asynccontextmanager
 from contextvars import ContextVar
 from typing import Tuple, Optional
+import aio_pika
 
 from fastapi import FastAPI, Request, Response, Depends
 from fastapi.middleware import Middleware
@@ -24,6 +25,8 @@ from .auth import (
     record_processing_failure, record_processing_success
 )
 from .rabbitmq import send_to_rabbitmq
+
+from rabbitmq import rabbitmq_manager
 
 
 # -------------------- Request ID Context for Logging --------------------
@@ -131,9 +134,65 @@ def validate_jpg_image(image_bytes: bytes) -> Tuple[bool, Optional[str]]:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    task = asyncio.create_task(update_credentials_periodically())
-    yield
-    task.cancel()
+
+    logger.info("Starting application...")
+
+    # 1. Background credential refresh task
+    credential_task = asyncio.create_task(
+        update_credentials_periodically()
+    )
+
+    # 2. Read env vars
+    cluster = os.getenv("CLUSTER")
+    rb_url_gold = os.getenv("RABBITMQ_GOLD_URL")
+    rb_url_golddr = os.getenv("RABBITMQ_GOLDDR_URL")
+    rb_exchange_name = os.getenv("RABBITMQ_EXCHANGE_NAME")
+
+    if not cluster:
+        raise ValueError("Missing environment variable: CLUSTER")
+    if not rb_url_gold:
+        raise ValueError("Missing environment variable: RABBITMQ_GOLD_URL")
+    if not rb_url_golddr:
+        raise ValueError("Missing environment variable: RABBITMQ_GOLDDR_URL")
+
+    rb_url = rb_url_golddr if cluster.upper() == "GOLDDR" else rb_url_gold
+
+    # 3. Create RabbitMQ shared connection and exchange for the app
+    try:
+        connection = await aio_pika.connect_robust(rb_url)
+        channel = await connection.channel()
+        exchange = await channel.declare_exchange(
+            name=rb_exchange_name,
+            type=aio_pika.ExchangeType.FANOUT,
+            durable=True
+        )
+        app.state.rabbitmq_connection = connection
+        app.state.rabbitmq_exchange = exchange
+    except Exception as e:
+        logger.error(f"Failed to connect to RabbitMQ: {e}", exc_info=True)
+        raise
+
+    logger.info("Application startup complete")
+
+    try:
+        yield
+
+    finally:
+        logger.info("Shutting down application...")
+
+        # 4. Stop background task (KEEP THIS)
+        credential_task.cancel()
+        try:
+            await credential_task
+        except asyncio.CancelledError:
+            logger.info("Credential refresh task cancelled")
+
+        # 5. Close RabbitMQ connection
+        connection = getattr(app.state, "rabbitmq_connection", None)
+        if connection:
+            await connection.close()
+
+        logger.info("Application shutdown complete")
 
 app = FastAPI(
     title="MOTT Image Ingestion Service",
