@@ -6,7 +6,6 @@ import os
 import logging
 from datetime import datetime, timezone
 
-from image_ingestion_service.image_receiver import app
 
 logger = logging.getLogger(__name__)
 
