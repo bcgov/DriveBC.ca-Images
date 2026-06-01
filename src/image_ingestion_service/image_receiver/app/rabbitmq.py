@@ -1,4 +1,3 @@
-from urllib import request
 import aio_pika
 import logging
 from datetime import datetime, timezone
