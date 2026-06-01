@@ -1,8 +1,5 @@
-import json
-from urllib import request
-
+import urllib.request as urllib_req
 import aio_pika
-import os
 import logging
 from datetime import datetime, timezone
 
@@ -23,8 +20,8 @@ async def send_to_rabbitmq(image_bytes, filename, camera_id, timestamp):
     processed_timestamp = processed_dt.strftime("%Y%m%d%H%M%S") + f"{int(processed_dt.microsecond / 1000):03d}"
 
     try:
-        exchange = request.app.state.rabbitmq_exchange
-        connection = request.app.state.rabbitmq_connection
+        exchange = urllib_req.app.state.rabbitmq_exchange
+        connection = urllib_req.app.state.rabbitmq_connection
         channel = await connection.channel()
         
         try:

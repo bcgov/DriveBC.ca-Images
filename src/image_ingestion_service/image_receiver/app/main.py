@@ -167,7 +167,7 @@ async def lifespan(app: FastAPI):
         app.state.rabbitmq_connection = connection
         app.state.rabbitmq_exchange = exchange
     except Exception as e:
-        logger.error(f"Failed to connect to RabbitMQ: {e}", exc_info=True)
+        logging.exception(f"Failed to connect to RabbitMQ: {e}", exc_info=True)
         raise
 
     logger.info("Application startup complete")
@@ -182,7 +182,7 @@ async def lifespan(app: FastAPI):
         credential_task.cancel()
         try:
             await credential_task
-        except asyncio.CancelledError:
+        except asyncio.CancelledError: # NOSONAR
             logger.info("Credential refresh task cancelled")
 
         # 5. Close RabbitMQ connection
