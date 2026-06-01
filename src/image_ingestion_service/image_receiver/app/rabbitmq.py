@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 
 logger = logging.getLogger(__name__)
 
-async def send_to_rabbitmq(image_bytes, filename, camera_id, timestamp):
+async def send_to_rabbitmq(request, image_bytes, filename, camera_id, timestamp):
     """
     Sends the image to RabbitMQ with the provided camera_id, filename, and timestamp.
     The timestamp should already be in compact UTC format (YYYYMMDDTHHMMSSZ).
