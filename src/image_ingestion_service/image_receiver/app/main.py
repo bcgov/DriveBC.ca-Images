@@ -1,5 +1,5 @@
 import os
-from socket import socket
+import socket
 import sys
 import uuid
 import logging
