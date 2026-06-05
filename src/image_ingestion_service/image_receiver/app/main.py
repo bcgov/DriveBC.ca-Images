@@ -1,4 +1,5 @@
 import os
+from socket import socket
 import sys
 import uuid
 import logging
@@ -151,14 +152,17 @@ async def lifespan(app: FastAPI):
         raise ValueError("Missing environment variable: RABBITMQ_GOLD_URL")
     if not rb_url_golddr:
         raise ValueError("Missing environment variable: RABBITMQ_GOLDDR_URL")
-    if cluster.upper() != "GOLD":
+    if not rb_exchange_name:
+        raise ValueError("Missing environment variable: RABBITMQ_EXCHANGE_NAME")
+    
+    if cluster.upper() != "GOLD" and cluster.upper() != "GOLDDR":
             logger.warning(f"Unknown CLUSTER value '{cluster}', defaulting to GOLD URL.")
 
     rb_url = rb_url_golddr if cluster.upper() == "GOLDDR" else rb_url_gold
 
     # 3. Create RabbitMQ shared connection, channel, exchange and lock for the app
     try:
-        connection = await aio_pika.connect_robust(rb_url)
+        connection = await aio_pika.connect_robust(rb_url, client_properties={"connection_name": socket.gethostname()})
         channel = await connection.channel()
         exchange = await channel.declare_exchange(
             name=rb_exchange_name,
