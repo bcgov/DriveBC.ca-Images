@@ -20,25 +20,26 @@ async def send_to_rabbitmq(request, image_bytes, filename, camera_id, timestamp)
 
     try:
         exchange = request.app.state.rabbitmq_exchange
-        connection = request.app.state.rabbitmq_connection
-        channel = await connection.channel()
-        
-        try:
-            message = aio_pika.Message(
-                body=image_bytes,
-                headers={
-                    "camera_id": camera_id,
-                    "filename": filename,
-                    "timestamp": formatted_timestamp,
-                    "processed_timestamp": processed_timestamp
-                },
-                delivery_mode=aio_pika.DeliveryMode.PERSISTENT
-            )
+        channel_lock = getattr(request.app.state, "rabbitmq_channel_lock", None)
 
-            await exchange.publish(message, routing_key="")  # Routing key is ignored for FANOUT
-            logger.debug(f"Published message for camera_id={camera_id} at {timestamp}")
-        finally:
-            await channel.close()
+        message = aio_pika.Message(
+            body=image_bytes,
+            headers={
+                "camera_id": camera_id,
+                "filename": filename,
+                "timestamp": formatted_timestamp,
+                "processed_timestamp": processed_timestamp
+            },
+            delivery_mode=aio_pika.DeliveryMode.PERSISTENT
+        )
+
+        if channel_lock:
+            async with channel_lock:
+                await exchange.publish(message, routing_key="")
+        else:
+            await exchange.publish(message, routing_key="")
+
+        logger.debug(f"Published message for camera_id={camera_id} at {timestamp}")
     except Exception as e:
         logger.error(f"Failed to publish message to RabbitMQ: {e}", exc_info=True)
         raise

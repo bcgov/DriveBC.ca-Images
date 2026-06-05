@@ -5,7 +5,6 @@ import logging
 import asyncio
 from io import BytesIO
 from datetime import datetime, timezone
-from urllib.parse import urlparse
 from contextlib import asynccontextmanager
 from contextvars import ContextVar
 from typing import Tuple, Optional
@@ -152,10 +151,12 @@ async def lifespan(app: FastAPI):
         raise ValueError("Missing environment variable: RABBITMQ_GOLD_URL")
     if not rb_url_golddr:
         raise ValueError("Missing environment variable: RABBITMQ_GOLDDR_URL")
+    if cluster.upper() != "GOLD":
+            logger.warning(f"Unknown CLUSTER value '{cluster}', defaulting to GOLD URL.")
 
     rb_url = rb_url_golddr if cluster.upper() == "GOLDDR" else rb_url_gold
 
-    # 3. Create RabbitMQ shared connection and exchange for the app
+    # 3. Create RabbitMQ shared connection, channel, exchange and lock for the app
     try:
         connection = await aio_pika.connect_robust(rb_url)
         channel = await connection.channel()
@@ -165,7 +166,9 @@ async def lifespan(app: FastAPI):
             durable=True
         )
         app.state.rabbitmq_connection = connection
+        app.state.rabbitmq_channel = channel
         app.state.rabbitmq_exchange = exchange
+        app.state.rabbitmq_channel_lock = asyncio.Lock()
     except Exception as e:
         logging.exception(f"Failed to connect to RabbitMQ: {e}", exc_info=True)
         raise
@@ -185,7 +188,11 @@ async def lifespan(app: FastAPI):
         except asyncio.CancelledError: # NOSONAR
             logger.info("Credential refresh task cancelled")
 
-        # 5. Close RabbitMQ connection
+        # 5. Close RabbitMQ channel and connection
+        channel = getattr(app.state, "rabbitmq_channel", None)
+        if channel:
+            await channel.close()
+
         connection = getattr(app.state, "rabbitmq_connection", None)
         if connection:
             await connection.close()
