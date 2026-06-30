@@ -61,7 +61,7 @@ jobs:
       name: prod
     steps:
     - name: Checkout code
-      uses: actions/checkout@v6
+      uses: actions/checkout@v7
     - name: OC Setup
       uses: ./.github/actions/oc-setup
       with:
@@ -83,7 +83,7 @@ jobs:
       name: prod
     steps:
     - name: Checkout code
-      uses: actions/checkout@v6
+      uses: actions/checkout@v7
 
     - name: OC Setup
       uses: ./.github/actions/oc-setup
