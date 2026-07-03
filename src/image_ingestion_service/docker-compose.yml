@@ -11,3 +11,28 @@ services:
       - DB_NAME=${DB_NAME}
       - DB_USER=${DB_USER}
       - DB_PASSWORD=${DB_PASSWORD}
+      - CLUSTER=${CLUSTER}
+      - RABBITMQ_GOLD_URL=${RABBITMQ_GOLD_URL}
+      - RABBITMQ_GOLDDR_URL=${RABBITMQ_GOLDDR_URL}
+      - RABBITMQ_EXCHANGE_NAME=${RABBITMQ_EXCHANGE_NAME}
+      - MAX_FILE_SIZE_BYTES=${MAX_FILE_SIZE_BYTES}
+
+#   rabbitmq:
+#     image: rabbitmq:3-management
+#     container_name: rabbitmq
+#     ports:
+#       - "5672:5672"   # AMQP protocol port (used by your app)
+#       - "15672:15672" # Management UI (http://localhost:15672)
+#     environment:
+#       - RABBITMQ_DEFAULT_USER=${RABBITMQ_USER:-guest}
+#       - RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASS:-guest}
+#     volumes:
+#       - rabbitmq_data:/var/lib/rabbitmq
+#     healthcheck:
+#       test: ["CMD", "rabbitmq-diagnostics", "check_port_connectivity"]
+#       interval: 10s
+#       timeout: 5s
+#       retries: 5
+
+# volumes:
+#   rabbitmq_data:

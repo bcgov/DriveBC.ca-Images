@@ -91,3 +91,115 @@ This workflow is triggered through the 'Releases' section of Github action.
 1. Give the release a title (ie `0.0.1`)
 1. Click `Generate release notes` if you like
 1. Click `Publish release` which will automatically trigger the workflow to deploy that tag you selected to prod.
+
+# Running Unit Tests
+
+This project uses **pytest** for unit testing.
+
+## Prerequisites
+
+Ensure the following packages are installed:
+
+- pytest
+- pytest-mock
+- pytest-asyncio
+- httpx2
+
+These dependencies should be included in `requirements.txt`.
+
+## Run All Tests
+
+From the project root directory (`/app` inside the Docker container), run:
+
+```bash
+python -m pytest
+```
+
+or with verbose output:
+
+```bash
+python -m pytest -v
+```
+
+or
+
+```bash
+python -m pytest -s -vv
+```
+
+## Run a Specific Test File
+
+```bash
+python -m pytest tests/test_main.py
+```
+
+Example:
+
+```bash
+python -m pytest tests/test_auth.py
+```
+
+## Run a Single Test
+
+```bash
+python -m pytest tests/test_main.py::test_upload_success
+```
+
+## Generate a Coverage Report
+
+Install the coverage plugin if it is not already available:
+
+```bash
+pip install pytest-cov
+```
+
+Run:
+
+```bash
+python -m pytest --cov=app --cov-report=term-missing
+```
+
+Example output:
+
+```
+Name                 Stmts   Miss  Cover   Missing
+--------------------------------------------------
+app/__init__.py          0      0   100%
+app/auth.py            192    125    35%   33, 37-39, 71-83, 86-87, 92-101, 106-113, 118-125, 129-135, 142, 146-147, 151-152, 159-161, 170-174, 186-191, 196-208, 213-229, 243-300
+app/db.py               21      0   100%
+app/main.py            195     93    52%   122, 125-126, 136-204, 227-229, 265-332
+app/print_cache.py      11     11     0%   5-23
+app/rabbitmq.py         21      0   100%
+--------------------------------------------------
+TOTAL                  440    229    48%
+```
+
+## Test Structure
+
+```
+tests/
+├── conftest.py          # Shared fixtures and authentication overrides
+├── test_main.py         # API endpoint tests
+├── test_auth.py         # Authentication unit tests
+├── test_db.py           # Database access tests
+└── test_rabbitmq.py     # RabbitMQ publisher tests
+```
+
+## Notes
+
+- Tests use mocked dependencies and do not require a running RabbitMQ instance.
+- Database interactions are mocked and do not require a SQL Server instance.
+- Authentication is overridden in `conftest.py` for API endpoint tests.
+- Always run tests using:
+
+```bash
+python -m pytest
+```
+
+instead of
+
+```bash
+pytest
+```
+
+to ensure the correct Python environment is used.
