@@ -9,7 +9,7 @@ DB_SERVER = os.getenv("DB_SERVER")
 DB_NAME = os.getenv("DB_NAME")
 DB_USER = os.getenv("DB_USER")
 DB_PASSWORD = os.getenv("DB_PASSWORD")
-DB_DRIVER = "ODBC Driver 17 for SQL Server"  # Make sure this driver is installed on the container
+DB_DRIVER = "ODBC Driver 18 for SQL Server"  # Make sure this driver is installed on the container
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +21,11 @@ connection_url = URL.create(
     host=DB_SERVER,
     port=1433,
     database=DB_NAME,
-    query={"driver": DB_DRIVER}
+    query={
+        "driver": DB_DRIVER,
+        "TrustServerCertificate": "yes",
+        "Encrypt": "yes",
+    }
 )
 
 # Create SQLAlchemy engine
