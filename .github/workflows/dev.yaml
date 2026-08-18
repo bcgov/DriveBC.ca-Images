@@ -106,7 +106,8 @@ jobs:
 
   update-openshift-gold:
     needs: [build-and-push-frontend, build-and-push-backend]
-    runs-on: ubuntu-latest
+    runs-on:
+        group: Larger Runners - OpenShift Static-IP
     name: Deploy Latest Images to OpenShift Gold
     permissions:
       contents: read
@@ -128,7 +129,8 @@ jobs:
 
   update-openshift-golddr:
     needs: [build-and-push-frontend, build-and-push-backend]
-    runs-on: ubuntu-latest
+    runs-on:
+        group: Larger Runners - OpenShift Static-IP
     name: Deploy Latest Images to OpenShift GoldDR
     permissions:
       contents: read

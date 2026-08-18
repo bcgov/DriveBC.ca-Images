@@ -53,7 +53,8 @@ jobs:
 
   update-openShift-gold:
     needs: [tag]
-    runs-on: ubuntu-latest
+    runs-on:
+        group: Larger Runners - OpenShift Static-IP
     name: Deploy Latest Images to OpenShift Gold
     permissions:
       contents: read
@@ -75,7 +76,8 @@ jobs:
 
   update-openshift-golddr:
     needs: [tag] 
-    runs-on: ubuntu-latest
+    runs-on:
+        group: Larger Runners - OpenShift Static-IP
     name: Deploy Latest Images to OpenShift GoldDR
     permissions:
       contents: read
