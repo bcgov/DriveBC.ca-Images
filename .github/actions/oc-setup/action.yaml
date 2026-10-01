@@ -26,7 +26,7 @@ runs:
       if: steps.cache-oc.outputs.cache-hit != 'true'
       shell: bash
       run: |
-        curl -sL https://mirror.openshift.com/pub/openshift-v4/clients/ocp/stable/openshift-client-linux.tar.gz \
+        curl -s https://mirror.openshift.com/pub/openshift-v4/clients/ocp/stable/openshift-client-linux.tar.gz \
           | tar -xz -C /usr/local/bin oc
 
     - name: Authenticate and set project
