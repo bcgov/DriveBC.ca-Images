@@ -135,12 +135,7 @@ async def lifespan(app: FastAPI):
 
     logger.info("Starting application...")
 
-    # 1. Background credential refresh task
-    credential_task = asyncio.create_task(
-        update_credentials_periodically()
-    )
-
-    # 2. Read env vars
+    # Read and validate configuration before starting background work.
     cluster = os.getenv("CLUSTER")
     rb_url_gold = os.getenv("RABBITMQ_GOLD_URL")
     rb_url_golddr = os.getenv("RABBITMQ_GOLDDR_URL")
@@ -160,7 +155,8 @@ async def lifespan(app: FastAPI):
 
     rb_url = rb_url_golddr if cluster.upper() == "GOLDDR" else rb_url_gold
 
-    # 3. Create RabbitMQ shared connection, channel, exchange and lock for the app
+    connection = None
+    channel = None
     try:
         connection = await aio_pika.connect_robust(rb_url, client_properties={"connection_name": socket.gethostname()})
         channel = await connection.channel()
@@ -174,8 +170,15 @@ async def lifespan(app: FastAPI):
         app.state.rabbitmq_exchange = exchange
         app.state.rabbitmq_channel_lock = asyncio.Lock()
     except Exception as e:
+        if channel:
+            await channel.close()
+        if connection:
+            await connection.close()
         logging.exception(f"Failed to connect to RabbitMQ: {e}", exc_info=True)
         raise
+
+    # Start background work only after the shared RabbitMQ connection is ready.
+    credential_task = asyncio.create_task(update_credentials_periodically())
 
     logger.info("Application startup complete")
 
@@ -192,12 +195,10 @@ async def lifespan(app: FastAPI):
         except asyncio.CancelledError: # NOSONAR
             logger.info("Credential refresh task cancelled")
 
-        # 5. Close RabbitMQ channel and connection
-        channel = getattr(app.state, "rabbitmq_channel", None)
+        # Close RabbitMQ channel and connection
         if channel:
             await channel.close()
 
-        connection = getattr(app.state, "rabbitmq_connection", None)
         if connection:
             await connection.close()
 
@@ -330,4 +331,3 @@ async def receive_image(request: Request, auth_data=Depends(authenticate_request
     logger.info(f"Successfully processed image for camera_id={camera_id}")
     record_processing_success()
     return Response(content="Image received and processed successfully", media_type="text/plain", status_code=200)
-
