@@ -24,7 +24,7 @@ services:
         condition: service_healthy
 
   rabbitmq:
-    image: rabbitmq:3-management
+    image: rabbitmq:4-management
     container_name: image-receiver-rabbitmq
     ports:
       - "5672:5672"
