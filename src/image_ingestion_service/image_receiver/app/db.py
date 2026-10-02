@@ -44,5 +44,5 @@ def get_all_from_db():
             rows = [dict(row._mapping) for row in result]
             return rows
         except Exception as e:
-            logger.error(f"Failed to connect to the database: {e}")
+            logger.exception(f"Failed to connect to the database: {e}")
                  
