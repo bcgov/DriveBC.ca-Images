@@ -35,7 +35,7 @@ jobs:
       packages: write
     steps:
     - name: Add latest-prod tag to frontend image
-      uses: shrink/actions-docker-registry-tag@v5
+      uses: shrink/actions-docker-registry-tag@e6aaef25c595b6e0edd18bf4c7dbfea3abd43299 # v5
       with:
         registry: ${{ env.REGISTRY }}
         repository: ${{ env.FRONTEND_IMAGE_NAME }}
@@ -43,7 +43,7 @@ jobs:
         tags: |
           latest-prod
     - name: Add latest-prod tag to backend image
-      uses: shrink/actions-docker-registry-tag@v5
+      uses: shrink/actions-docker-registry-tag@e6aaef25c595b6e0edd18bf4c7dbfea3abd43299 # v5
       with:
         registry: ${{ env.REGISTRY }}
         repository: ${{ env.BACKEND_IMAGE_NAME }}
@@ -62,7 +62,7 @@ jobs:
       name: prod
     steps:
     - name: Checkout code
-      uses: actions/checkout@v7
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
     - name: OC Setup
       uses: ./.github/actions/oc-setup
       with:
@@ -85,7 +85,7 @@ jobs:
       name: prod
     steps:
     - name: Checkout code
-      uses: actions/checkout@v7
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
     - name: OC Setup
       uses: ./.github/actions/oc-setup
