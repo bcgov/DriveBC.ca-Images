@@ -4,7 +4,7 @@
 #
 #    pip-compile --generate-hashes --no-index --output-file=requirements.txt requirements.in
 #
-aio-pika==10.0.1 \
+aio-pika==10.0.4 \
     --hash=sha256:12120a3cf8022d2a8bc5dc89e716512a38bf742c24c5562f54764af27eec7edd \
     --hash=sha256:96ec3ef748ca7a25a9d2fa6e511c16c3ffcfa6b1f40ade79b8a5baabba682efd
     # via -r requirements.in
