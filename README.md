@@ -146,47 +146,6 @@ Ensure the following packages are installed:
 
 These dependencies should be included in `requirements-dev.txt`.
 
-## Updating Python Dependencies
-
-Edit `requirements.in` for application dependencies or `requirements-dev.in` for
-development and test dependencies. The dev input includes `requirements.txt`,
-so compile the base requirements first whenever `requirements.in` changes.
-Dependency updates are managed by Renovate, configured in `renovate.json`.
-
-From the repository root, in PowerShell:
-
-```powershell
-Set-Location src\image_ingestion_service\image_receiver
-py -3 -m venv .venv  # Run once if the virtual environment does not exist
-.\.venv\Scripts\python.exe -m pip install --upgrade pip pip-tools
-.\.venv\Scripts\pip-compile.exe --generate-hashes --output-file=requirements.txt requirements.in
-.\.venv\Scripts\pip-compile.exe --generate-hashes --output-file=requirements-dev.txt requirements-dev.in
-```
-
-On Linux or macOS, run the equivalent commands from the receiver directory:
-
-```bash
-python3 -m venv .venv  # Run once if the virtual environment does not exist
-.venv/bin/python -m pip install --upgrade pip pip-tools
-.venv/bin/pip-compile --generate-hashes --output-file=requirements.txt requirements.in
-.venv/bin/pip-compile --generate-hashes --output-file=requirements-dev.txt requirements-dev.in
-```
-
-If you only changed `requirements-dev.in`, you only need to recompile
-`requirements-dev.txt`. If you changed `requirements.in`, recompile
-`requirements.txt` first, then `requirements-dev.txt`. Review both generated
-files and commit them together with the input-file change.
-
-To verify the generated dev requirements and run the tests in the virtual
-environment:
-
-```powershell
-.\.venv\Scripts\python.exe -m pip install --require-hashes -r requirements-dev.txt
-.\.venv\Scripts\python.exe -m pytest -v
-```
-
-Use `python -m pip install --require-hashes -r requirements-dev.txt` and
-`python -m pytest -v` on Linux or macOS.
 
 ## Run All Tests
 

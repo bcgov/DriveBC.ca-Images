@@ -20,7 +20,7 @@ RUN apt-get update && \
     useradd --create-home --shell /bin/bash appuser
 
 COPY ./src/image_ingestion_service/image_receiver/requirements.txt requirements.txt
-RUN pip install --require-hashes --no-cache-dir --only-binary :all: -r requirements.txt
+RUN pip install --no-cache-dir --only-binary :all: -r requirements.txt
 
 COPY --chown=appuser:appuser ./src/image_ingestion_service/image_receiver /app
 
