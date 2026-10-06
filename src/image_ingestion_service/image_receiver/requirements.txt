@@ -4,9 +4,9 @@
 #
 #    pip-compile --generate-hashes --no-index --output-file=requirements.txt requirements.in
 #
-aio-pika==10.0.1 \
-    --hash=sha256:12120a3cf8022d2a8bc5dc89e716512a38bf742c24c5562f54764af27eec7edd \
-    --hash=sha256:96ec3ef748ca7a25a9d2fa6e511c16c3ffcfa6b1f40ade79b8a5baabba682efd
+aio-pika==10.1.0 \
+    --hash=sha256:8dd8aa4514328876e9208970b7dae3a7650afb3373906a2a530286742ebe0f74 \
+    --hash=sha256:ec340bff09d169a367717a4dd822969dac9cc5e835e22a67020e3613784f3139
     # via -r requirements.in
 aiofiles==25.1.0 \
     --hash=sha256:a8d728f0a29de45dc521f18f07297428d56992a742f0cd2701ba86e44d23d5b2 \
