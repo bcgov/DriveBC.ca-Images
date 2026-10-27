@@ -57,6 +57,10 @@ podman compose --env-file src\image_ingestion_service\.env -f src\image_ingestio
 On Linux or macOS, use `cp` instead of `Copy-Item`; the `podman compose`
 commands are otherwise the same, with `/` path separators.
 
+For Docker local run:
+- Go to src/image-ingestion-service folder
+- Run docker-compose up -d --build
+
 ## Image ingestion Workflow
 
 Axis Camera Image Ingestion Workflow
