@@ -5,7 +5,7 @@ services:
       context: ../..
       dockerfile: compose/image_receiver/Dockerfile
     ports:
-      - "8000:8000"
+      - "8002:8000"
     environment:
       RABBITMQ_URL: ${RABBITMQ_URL:-amqp://localuser:localpass@rabbitmq:5672/}
       LOCATION_USER_PASS_MAPPING: ${LOCATION_USER_PASS_MAPPING:-}

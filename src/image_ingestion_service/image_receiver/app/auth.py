@@ -12,7 +12,8 @@ from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from prometheus_client import Counter
 from asyncio import Lock
 
-from .db import get_all_from_db
+from .db import get_all
+from pprint import pprint
 
 # -------------------- Logger Setup --------------------
 logger = logging.getLogger(__name__)
@@ -71,7 +72,7 @@ async def update_credentials_periodically():
     while True:
         try:
             logger.info("Refreshing camera details from DB...")
-            creds_list = get_all_from_db()
+            creds_list = get_all()
             if creds_list:
                 new_cache = {str(record["ID"]): record for record in creds_list}
                 async with CREDENTIAL_CACHE_LOCK:
@@ -91,7 +92,7 @@ def get_data_from_db():
     """One-time loading of credentials on startup or fallback."""
     try:
         logger.info("Initializing camera details from DB...")
-        creds_list = get_all_from_db()
+        creds_list = get_all()
         if creds_list:
             # Build a dictionary with camera ID as the key
             new_cache = {str(record["ID"]): record for record in creds_list}
