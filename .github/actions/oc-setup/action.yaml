@@ -17,7 +17,7 @@ runs:
   steps:
     - name: Cache oc CLI
       id: cache-oc
-      uses: actions/cache@v5
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
       with:
         path: /usr/local/bin/oc
         key: oc-cli-stable-${{ runner.os }}
@@ -26,7 +26,7 @@ runs:
       if: steps.cache-oc.outputs.cache-hit != 'true'
       shell: bash
       run: |
-        curl -sL https://mirror.openshift.com/pub/openshift-v4/clients/ocp/stable/openshift-client-linux.tar.gz \
+        curl -s https://mirror.openshift.com/pub/openshift-v4/clients/ocp/stable/openshift-client-linux.tar.gz \
           | tar -xz -C /usr/local/bin oc
 
     - name: Authenticate and set project

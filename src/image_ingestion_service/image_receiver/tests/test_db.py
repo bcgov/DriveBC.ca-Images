@@ -62,7 +62,7 @@ def test_get_all_from_db_exception():
         with patch("app.db.logger") as mock_logger:
             result = get_all_from_db()
 
-    mock_logger.error.assert_called_once()
+    mock_logger.exception.assert_called_once()
     assert result is None
 
 from unittest.mock import ANY
@@ -80,4 +80,3 @@ def test_execute_called_once():
         get_all_from_db()
 
     mock_connection.execute.assert_called_once_with(ANY)
-

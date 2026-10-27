@@ -1,23 +1,48 @@
-# file based env values
-.env
-src/image_ingetsion_system/.env
+# Environment files and local secrets
+**/.env
+**/.env.*
+!**/.env.example
 
-# Build files
-*.pyc
-*.pyo
-
-# Virtual environments
-**/venv/
+# Python
+**/__pycache__/
+*.py[cod]
+*$py.class
 **/.venv/
+**/venv/
+**/env/
+**/ENV/
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+.mypy_cache/
+.ruff_cache/
 
-# src/image/
+# Editors
+.vscode/
+.idea/
+*.swp
+*.swo
 
-# # Nginx configuration files
+# Operating systems
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Logs and local databases
+*.log
+*.sqlite
+*.sqlite3
+*.db
+
+# Frontend/package build output
+node_modules/
+dist/
+build/
+
+# Local deployment files
 nginx/.htpasswd
 nginx/ip_whitelist.conf
-
-
-# Replay the day json files
 src/image_ingestion_service/ReplayTheDay/
-
-

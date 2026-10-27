@@ -9,15 +9,53 @@ The DriveBC Image Ingestion Service is composed of a single [Docker](https://www
 ## <a name="quickstart"></a>Quickstart
 1. Clone or download the project from: (https://github.com/bcgov/DriveBC.ca-Images.git)
 2. Setup [environment variables](#environment-configuration)
-3. Run docker-compose, 'cd DriveBC.ca-Images/src/image_ingestion_service && docker-compose up -d --build'
+3. Follow [Run locally with Podman Compose](#run-locally-with-podman-compose) to start the receiver and a local RabbitMQ broker.
 4. The following should be reachable:
    - image-receiver: backend API endpoint for receiving images at http://localhost:8000/api/images/
-
-<a name="first-asterisk"></a>** You will need to install or update to WSL 2 on Windows (wsl --install or wsl --update)
 
 ## <a name="environment-configuration"></a>Environment configuration
 Environments are configured via environment variables passed to Docker Compose in a .env file.
 Copy and rename ".env.example" into ".env" in the same directory and replace values according to your target environment.
+
+## Run locally with Podman Compose
+
+Install Podman and start its machine (on Windows or macOS):
+
+```powershell
+podman machine start
+```
+
+From the repository root, copy the example environment file. Its RabbitMQ
+settings point to the local broker in the Compose file. The example camera
+credentials are for local development only; replace them as needed. Leave the
+database fields blank only if you just want to start the service and check its
+health endpoint; camera authentication backed by the database will not work
+without valid database settings.
+
+```powershell
+Copy-Item src\image_ingestion_service\.env.example src\image_ingestion_service\.env
+podman compose --env-file src\image_ingestion_service\.env -f src\image_ingestion_service\docker-compose.yml up --build -d
+```
+
+The Compose file builds the receiver from the repository root and starts a
+local RabbitMQ broker. Check the API, logs, or RabbitMQ management page:
+
+```powershell
+Invoke-RestMethod http://localhost:8000/api/healthz
+podman compose --env-file src\image_ingestion_service\.env -f src\image_ingestion_service\docker-compose.yml logs -f
+```
+
+- Receiver API: <http://localhost:8000>
+- RabbitMQ management UI: <http://localhost:15672> (credentials from `.env`)
+
+Stop the local services when finished:
+
+```powershell
+podman compose --env-file src\image_ingestion_service\.env -f src\image_ingestion_service\docker-compose.yml down
+```
+
+On Linux or macOS, use `cp` instead of `Copy-Item`; the `podman compose`
+commands are otherwise the same, with `/` path separators.
 
 ## Image ingestion Workflow
 
@@ -103,13 +141,16 @@ Ensure the following packages are installed:
 - pytest
 - pytest-mock
 - pytest-asyncio
+- pytest-cov
 - httpx2
 
-These dependencies should be included in `requirements.txt`.
+These dependencies should be included in `requirements-dev.txt`.
+
 
 ## Run All Tests
 
-From the project root directory (`/app` inside the Docker container), run:
+Run from `src/image_ingestion_service/image_receiver` after installing the
+development requirements as described above:
 
 ```bash
 python -m pytest
@@ -147,32 +188,17 @@ python -m pytest tests/test_main.py::test_upload_success
 
 ## Generate a Coverage Report
 
-Install the coverage plugin if it is not already available:
-
-```bash
-pip install pytest-cov
-```
-
-Run:
+The coverage plugin is included in `requirements-dev.txt`. Run this from the
+receiver directory:
 
 ```bash
 python -m pytest --cov=app --cov-report=term-missing
 ```
 
-Example output:
-
-```
-Name                 Stmts   Miss  Cover   Missing
---------------------------------------------------
-app/__init__.py          0      0   100%
-app/auth.py            192    125    35%   33, 37-39, 71-83, 86-87, 92-101, 106-113, 118-125, 129-135, 142, 146-147, 151-152, 159-161, 170-174, 186-191, 196-208, 213-229, 243-300
-app/db.py               21      0   100%
-app/main.py            195     93    52%   122, 125-126, 136-204, 227-229, 265-332
-app/print_cache.py      11     11     0%   5-23
-app/rabbitmq.py         21      0   100%
---------------------------------------------------
-TOTAL                  440    229    48%
-```
+GitHub Actions publishes coverage in the workflow run summary and uploads the
+Cobertura report to GitHub Code Quality, where coverage is displayed on pull
+requests. Uploads are skipped for pull requests from forks because they cannot
+write coverage data to the base repository.
 
 ## Test Structure
 

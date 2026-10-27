@@ -1,6 +1,13 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
-    "github>bcgov/renovate-config#2026.04"
+    "github>bcgov/renovate-config#2026.9.26"
+  ],
+  "packageRules": [
+    {
+      "description": "Disable automerge for major updates",
+      "matchUpdateTypes": ["major"],
+      "automerge": false
+    }
   ]
 }
