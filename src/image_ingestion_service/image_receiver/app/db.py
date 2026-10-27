@@ -51,7 +51,6 @@ def get_all_from_db():
 
 def get_all_from_api():
     RIDE_SERVICE_TOKEN = os.environ["RIDE_SERVICE_TOKEN"]
-    print(RIDE_SERVICE_TOKEN)
     headers = {"X-Internal-Token": RIDE_SERVICE_TOKEN}
     try:
         response = requests.get(RIDE_IMAGE_INGESTION_URL, headers=headers, timeout=10)
