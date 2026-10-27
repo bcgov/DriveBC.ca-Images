@@ -63,6 +63,5 @@ def get_all_from_api():
 def get_all():
     CAMERA_SOURCE = os.environ["CAMERA_SOURCE"]
     if CAMERA_SOURCE == "api":
-        print('bruce test get from api')
         return get_all_from_api()
     return get_all_from_db()
