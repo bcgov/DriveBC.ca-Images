@@ -86,7 +86,7 @@ Port forward MOTT RabbitMQ to local:
 - Port forward RabbitMQ 5672 port to local host all interfaces: kubectl port-forward svc/moti-rabbitmq 5672:5672 --address 0.0.0.0. (oc command does not work to port forward to all interfaces.)
 
 Run curl from Windows Command Prompt:
-- curl -X POST -H "camera-id: cam123" -H "username: north_user" -H "password: north_pass"  -F "image=@C:/work/DriveBC.ca-Images/src/image_ingestion_service/image/cam123.jpg" http://localhost:8000/images
+- curl -i -X POST -u "<username>:<password>" -H "camera-id: 123" -H "Content-Disposition: attachment; filename=\"123.jpg\"" -F "image=@C:/test/123.jpg" http://localhost:8000/api/images
 - Ensure the camera-id header and correct file path are used. Replace credentials as needed for authentication testing.
 
 Verify Image Reception in RabbitMQ:
