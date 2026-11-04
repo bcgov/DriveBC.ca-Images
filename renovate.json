@@ -8,6 +8,11 @@
       "description": "Disable automerge for major updates",
       "matchUpdateTypes": ["major"],
       "automerge": false
+    },
+    {
+      "description": "Disable automerge for all Python updates",
+      "matchCategories": ["python"],
+      "automerge": false
     }
   ]
 }
