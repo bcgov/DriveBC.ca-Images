@@ -1,6 +1,6 @@
 fastapi==0.162.0
 uvicorn==0.54.0
-python-multipart==0.0.32
+python-multipart==0.0.33
 pillow==13.0.0
 prometheus_fastapi_instrumentator==8.1.0
 aio_pika==10.2.1
