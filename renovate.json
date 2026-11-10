@@ -10,8 +10,9 @@
       "automerge": false
     },
     {
-      "description": "Disable automerge for all Python updates",
-      "matchCategories": ["python"],
+      "description": "Disable automerge for Python runtime and container updates",
+      "matchPackageNames": ["python", "actions/python-versions"],
+      "matchDatasources": ["docker", "github-releases"],
       "automerge": false
     }
   ]
