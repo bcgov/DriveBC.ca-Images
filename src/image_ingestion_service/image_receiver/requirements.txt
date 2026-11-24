@@ -4,7 +4,7 @@ python-multipart==0.0.34
 pillow==13.0.0
 prometheus_fastapi_instrumentator==8.1.0
 aio_pika==10.2.3
-sqlalchemy==2.1.8
+sqlalchemy==2.1.9
 pyodbc==5.5.0
 aiofiles==25.1.0
 pytest==9.2.0 
